@@ -3,6 +3,9 @@ import ast
 
 """
 options.py
+Written by Eirik Vesterkjær, 2019
+Apache License
+
 Implements a basic config structure and functionality for initializing from a config file (.ini)
 
 to use, pass a filepath to the Config class initializer.
@@ -25,17 +28,21 @@ class EnvConfig(IniConfig):
     root_path: str   = "~/Programming/esdrgan"
     log_subpath: str = "/log"
     runs_subpath: str = "/runs"
+    generator_load_subpath: str = None
+    discriminator_load_subpath: str = None
 
     def setEnvConfig(self, env_config):
         self.root_path = env_config.get("root_path")
         self.log_subpath = env_config.get("log_subpath")
         self.runs_subpath = env_config.get("runs_subpath")
+        self.generator_load_subpath = env_config.get("generator_load_subpath")
+        self.discriminator_load_subpath = env_config.get("discriminator_load_subpath")
 
 class GeneratorConfig(IniConfig):
     norm_type: str = "none"
     act_type: str = "leakyrelu"
     layer_mode: str = "CNA"
-    model_load_subpath: str = None
+    
     num_features: int = 64
     num_rrdb: int = 23
     in_num_ch: int = 3
@@ -46,7 +53,6 @@ class GeneratorConfig(IniConfig):
         self.norm_type = gen_config.get("norm_type")
         self.act_type = gen_config.get("act_type")
         self.layer_mode = gen_config.get("layer_mode")
-        self.model_load_subpath = gen_config.get("model_load_subpath")
         self.num_features = gen_config.getint("num_features")
         self.num_rrdb = gen_config.getint("num_rrdb")
         self.in_num_ch = gen_config.getint("in_num_ch")
@@ -111,6 +117,10 @@ class DatasetTestConfig(DatasetConfig):
 
 
 class TrainingConfig(IniConfig):
+    resume_training_from_save: bool = False
+    resume_epoch: int = 0
+    resume_iter: int = 0
+
     learning_rate_g: float = 1e-4
     learning_rate_d: float = 1e-4
     multistep_lr: bool = True
@@ -133,6 +143,9 @@ class TrainingConfig(IniConfig):
     log_period: int = 1e2
 
     def setTrainingConfig(self, train_config):
+        self.resume_training_from_save = train_config.getboolean("resume_training_from_save")
+        self.resume_epoch = train_config.getint("resume_epoch")
+        self.resume_iter = train_config.getint("resume_iter")
         self.learning_rate_g = train_config.getfloat("learning_rate_g")
         self.learning_rate_d = train_config.getfloat("learning_rate_d")
         self.multistep_lr = train_config.getboolean("multistep_lr")
@@ -155,7 +168,11 @@ class Config(IniConfig):
     model:  str  = "default_model"
     use_tensorboard_logger: bool = False
     scale:      int  = 4
-    gpu_ids:    list = [4]
+    gpu_id:    int = 0
+    also_log_to_terminal: bool = True
+    resume_training_from_save: bool = False
+    generator_load_subpath: str = ""
+    discriminator_load_subpath: str = ""
 
     env: EnvConfig = EnvConfig()
     generator: GeneratorConfig = GeneratorConfig()
@@ -211,19 +228,10 @@ class Config(IniConfig):
         self.model = base_config.get("model")
         self.use_tensorboard_logger = base_config.getboolean("use_tensorboard_logger")
         self.scale = base_config.getint("scale")
+        self.also_log_to_terminal = base_config.getboolean("also_log_to_terminal")
         # handle no input, int input, or list input
-        self.gpu_ids = safe_list_from_string(base_config.get("gpu_ids"), int)
-        """try:
-            gpus = ast.literal_eval(base_config.get("gpu_ids"))
-            if gpus is None:
-                self.gpu_ids = None
-            elif isinstance(gpus, list):
-                self.gpu_ids = [int(gpu) for gpu in gpus]
-            else:
-                self.gpu_ids = [int(gpus)]             
-        except:
-            # empty, daulty, or missing input -> no gpus
-            self.gpu_ids = None"""
+        self.gpu_id = base_config.getint("gpu_id")
+
 
     def asINI(self) -> str:
         return str(self)
