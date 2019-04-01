@@ -3,7 +3,14 @@ import ast
 
 """
 options.py
-Implements a basic config structure and functionality for initializing from a config file
+Implements a basic config structure and functionality for initializing from a config file (.ini)
+
+to use, pass a filepath to the Config class initializer.
+    cfg = Config(path_to_ini)
+can also return the config as a string, if you for instance want to log it:
+    str(cfg)
+the string can be saved to a new ini, which should give the same config if it is loaded,
+if there are no bugs (TM)
 """
 
 class IniConfig:
