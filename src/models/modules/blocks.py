@@ -16,19 +16,7 @@ class SkipConnectionBlock(nn.Module):
     def forward(self, x):
         return x + self.module(x)
 
-# wait, i don't need this.. oh well :/
-class ResidualBlock(nn.Module):
-    def __init__(self, in_nc: int, mid_nc: int, out_nc: int, res_scale = 1.0):
-        first = nn.Conv2d(in_nc, mid_nc, (3,3), stride=1, padding=1)
-        first_act = nn.ReLU()
-        second = nn.Conv2d(mid_nc, out_nc, (3,3), stride=1, padding=1)
-        final_act = nn.ReLU()
-        self.model = nn.Sequential( \
-                            SkipConnectionBlock( nn.Sequential(first, first_act, second) ),\
-                            final_act )
-    
-    def forward(self, x):
-        return self.model(x)
+
 
 
 class RDB_Conv(nn.Module):
@@ -62,8 +50,7 @@ class RDB(nn.Module):
             )
         # TODO: ESDRGAN uses 3x3 kernel here. Is it a bug in their code, or intentional?
         # In https://arxiv.org/pdf/1802.08797.pdf it's specified that LFF should have a 1x1 kern.
-
-        LFF = nn.Conv2d( num_chan + (num_convs-1)*growth_chan, num_chan, kernel_size=1, padding=0 )
+        LFF = nn.Conv2d( num_chan + (num_convs-1)*growth_chan, num_chan, kernel_size=3, padding=1 )
         modules.append(LFF)
         self.modules = nn.Sequential(*modules)
 
@@ -95,12 +82,47 @@ class RRDB(nn.Module):
         return residual.mul(self.res_scaling) + x
 
 
+class StridedDownConv_2x(nn.Module):
+    def __init__(self, in_num_chan: int, out_num_chan: int,
+                 lrelu_neg_slope: float = 0.2,
+                 norm_type: str ='batch', drop_first_norm: bool=False):
+        super(StridedDownConv_2x, self).__init__()
+
+        def norm(nc: int, t: str):
+            if t is None or t == 'none':
+                return None
+            elif t == 'batch':
+                return nn.BatchNorm2d(nc)
+            elif t == 'instance':
+                return nn.InstanceNorm2d(nc)
+            else:
+                raise NotImplementedError(f"Unknown norm type {t}")
+        module = []
+        # Feature increase
+        module.append(nn.Conv2d(in_num_chan, out_num_chan, kernel_size=3, padding=1, stride=1))
+        norm_layer = norm(out_num_chan, norm_type)
+        if not drop_first_norm and norm(out_num_chan, norm_type) is not None:
+            module.append(norm_layer)
+        module.append(nn.LeakyReLU(negative_slope=lrelu_neg_slope))
+
+        # Strided conv for downsampling
+        module.append(nn.Conv2d(out_num_chan, out_num_chan, kernel_size=4, padding=0, stride=2))
+        norm_layer = norm(out_num_chan, norm_type)
+        if norm(out_num_chan, norm_type) is not None:
+            module.append(norm_layer)
+        module.append(nn.LeakyReLU(negative_slope=lrelu_neg_slope))
+            
+        self.strideddownconv = nn.Sequential(*module)
+    def forward(self, x):
+        return self.strideddownconv(x)
+
+
 
 
 class UpConv(nn.Module):
     def __init__(self, in_num_chan: int, out_num_chan: int, scale: int,
                  lrelu_neg_slope: float = 0.2):
-        super(UpConv,self).__init__()
+        super(UpConv, self).__init__()
 
         self.upconv = nn.Sequential(
             nn.Upsample(scale_factor=scale, mode='nearest'),
