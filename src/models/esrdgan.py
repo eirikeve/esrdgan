@@ -12,7 +12,6 @@ import torch.nn as nn
 import config.config as config
 import models.basegan as basegan
 import models.architectures.featureextractor as featureextractor
-import models.blocks.blocks as blocks
 
 
 class ESRDGAN(basegan.BaseGAN):

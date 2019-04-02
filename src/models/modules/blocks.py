@@ -36,6 +36,7 @@ class RDB_Conv(nn.Module):
                 kern_size: int = 3, lrelu_neg_slope: float = 0.2):
         super(RDB_Conv, self).__init__()
         self.conv = nn.Sequential(  
+            # TODO: inplace=True? Should be ok, and might increase performance?
                 nn.Conv2d( num_chan, growth_chan, kern_size, padding=(kern_size-1)//2, stride=1 ),
                 nn.LeakyReLU(negative_slope=lrelu_neg_slope)
             )
@@ -54,12 +55,15 @@ class RDB(nn.Module):
         self.res_scaling = res_scaling
         modules = []
 
-        for k in range(num_convs):
+        for k in range(num_convs - 1):
             in_ch = num_chan + k * growth_chan
             modules.append( 
                 RDB_Conv( in_ch, growth_chan, lrelu_neg_slope=lrelu_neg_slope )
             )
-        LFF = nn.Conv2d( num_chan + num_convs*growth_chan, num_chan, kernel_size=1 )
+        # TODO: ESDRGAN uses 3x3 kernel here. Is it a bug in their code, or intentional?
+        # In https://arxiv.org/pdf/1802.08797.pdf it's specified that LFF should have a 1x1 kern.
+
+        LFF = nn.Conv2d( num_chan + (num_convs-1)*growth_chan, num_chan, kernel_size=1, padding=0 )
         modules.append(LFF)
         self.modules = nn.Sequential(*modules)
 
@@ -100,7 +104,8 @@ class UpConv(nn.Module):
 
         self.upconv = nn.Sequential(
             nn.Upsample(scale_factor=scale, mode='nearest'),
-            nn.Conv2d(in_num_chan, out_num_chan, kernel_size=3, padding=1)
+            nn.Conv2d(in_num_chan, out_num_chan, kernel_size=3, padding=1),
+            nn.LeakyReLU(negative_slope=lrelu_neg_slope)
         )
     def forward(self, x):
         return self.upconv(x)

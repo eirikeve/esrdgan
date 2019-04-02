@@ -12,7 +12,7 @@ import math
 import torch
 import torch.nn as nn
 
-import models.blocks.blocks as blocks
+import models.modules.blocks as blocks
 
 class ESRDnet(nn.Module):
     def __init__(self, in_nc: int, out_nc: int, nf: int,
