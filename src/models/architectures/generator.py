@@ -13,24 +13,23 @@ import torch
 import torch.nn as nn
 
 import models.modules.blocks as blocks
+import models.modules.loggingclass as loggingclass
 
-class ESRDnet(nn.Module):
+class ESRDnet(nn.Module, loggingclass.LoggingClass):
     def __init__(self, in_nc: int, out_nc: int, nf: int,
-                 n_rrdb: int, n_rrdb_convs: int = 5, gc: int=32, 
+                 n_rrdb: int, upscale: int=4,
+                 n_rdb_convs: int = 5, rdb_gc: int=32, 
                  rdb_res_scaling: float = 0.2, rrdb_res_scaling: float = 0.2,
-                 upscale: int=4, norm_type=None,
-                 act_type='leakyrelu'):
+                 act_type:str="leakyrelu", device=torch.device("cpu")):
         super(ESRDnet, self).__init__()
 
-        status_logger = logging.getLogger("status")
-
         slope = 0
-        if act_type == 'leakyrelu':
+        if act_type == "leakyrelu":
             slope = 0.2
         elif act_type == "relu":
             slope = 0.0
         else:
-            status_logger.warning(f"activation type {act_type} has not been implemented - defaulting to leaky ReLU (0.2)")
+            self.status_logs.append(f"ESRDnet: warning: activation type {act_type} has not been implemented - defaulting to leaky ReLU (0.2)")
             slope = 0.2
 
         # Low level feature extraction
@@ -38,7 +37,7 @@ class ESRDnet(nn.Module):
 
         # Residual in residual dense blocks
         rrdbs = [ 
-                blocks.RRDB(nf, gc, n_rrdb_convs, lrelu_neg_slope=slope,
+                blocks.RRDB(nf, rdb_gc, n_rdb_convs, lrelu_neg_slope=slope,
                 rdb_res_scaling=rdb_res_scaling, rrdb_res_scaling=rrdb_res_scaling) for block in range(n_rrdb) ]
         # Conv after RRDB
         lr_conv = nn.Conv2d(nf, nf, kernel_size=3, padding=1)
@@ -50,7 +49,7 @@ class ESRDnet(nn.Module):
         # Upsampling: Upsample+conv combo
         n_upsample = math.floor(math.log2(upscale))
         if 2**n_upsample != upscale:
-            status_logger.warning(f"warning: upsampling only supported for factors 2^n. Defaulting {upscale} to {2**n_upsample}")
+            self.status_logs.append(f"ESRDnet: warning: upsampling only supported for factors 2^n. Defaulting {upscale} to {2**n_upsample}")
         
         upsampler = [ blocks.UpConv(nf, nf, scale=2, lrelu_neg_slope=slope) for upsample in range(n_upsample) ]
 
@@ -64,6 +63,7 @@ class ESRDnet(nn.Module):
             *upsampler,
             *hr_convs
          )
+        self.status_logs.append(f"ESRDnet: finished init")
 
     def forward(self, x):
         return self.model(x)
