@@ -43,11 +43,14 @@ class GeneratorConfig(IniConfig):
     act_type: str = "leakyrelu"
     layer_mode: str = "CNA"
     
-    num_features: int = 64
-    num_rrdb: int = 23
-    in_num_ch: int = 3
-    out_num_ch: int = 3
-    rrdb_chan_increment: int = 32
+    num_features: int       = 64
+    num_rrdb: int           = 23
+    num_rdb_convs: int      = 5
+    rdb_res_scaling: int    = 0.2
+    rrdb_res_scaling        = 0.2
+    in_num_ch: int          = 3
+    out_num_ch: int         = 3
+    rdb_growth_chan: int    = 32
 
     def setGeneratorConfig(self, gen_config):
         self.norm_type = gen_config.get("norm_type")
@@ -55,9 +58,12 @@ class GeneratorConfig(IniConfig):
         self.layer_mode = gen_config.get("layer_mode")
         self.num_features = gen_config.getint("num_features")
         self.num_rrdb = gen_config.getint("num_rrdb")
+        self.num_rdb_convs = gen_config.getint("num_rdb_convs")
+        self.rdb_res_scaling = gen_config.getfloat("rdb_res_scaling")
+        self.rrdb_res_scaling = gen_config.getfloat("rrdb_res_scaling")
         self.in_num_ch = gen_config.getint("in_num_ch")
         self.out_num_ch = gen_config.getint("out_num_ch")
-        self.rrdb_chan_increment = gen_config.getint("rrdb_chan_increment")
+        self.rdb_growth_chan = gen_config.getint("rdb_growth_chan")
 
 class DiscriminatorConfig(IniConfig):
     norm_type: str = "batch"
