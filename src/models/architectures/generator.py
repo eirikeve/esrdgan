@@ -12,14 +12,14 @@ import math
 import torch
 import torch.nn as nn
 
-import models.blocks as blocks
+import models.blocks.blocks as blocks
 
 class ESRDnet(nn.Module):
     def __init__(self, in_nc: int, out_nc: int, nf: int,
                  n_rrdb: int, n_rrdb_convs: int = 5, gc: int=32, 
                  rdb_res_scaling: float = 0.2, rrdb_res_scaling: float = 0.2,
                  upscale: int=4, norm_type=None,
-                 act_type='leakyrelu', mode='CNA', upsample_mode='upconv'):
+                 act_type='leakyrelu'):
         super(ESRDnet, self).__init__()
 
         status_logger = logging.getLogger("status")
@@ -43,18 +43,19 @@ class ESRDnet(nn.Module):
         # Conv after RRDB
         lr_conv = nn.Conv2d(nf, nf, kernel_size=3, padding=1)
         # Shortcut from feature_conv to the upsampler
-        rrdb_conv_shortcut = blocks.ShortcutBlock( nn.Sequential(
+        rrdb_conv_shortcut = blocks.SkipConnectionBlock( nn.Sequential(
             *rrdbs, lr_conv
         ))
 
         # Upsampling: Upsample+conv combo
-        n_upsample = math.log2(upscale)
+        n_upsample = math.floor(math.log2(upscale))
         if 2**n_upsample != upscale:
             status_logger.warning(f"warning: upsampling only supported for factors 2^n. Defaulting {upscale} to {2**n_upsample}")
         
         upsampler = [ blocks.UpConv(nf, nf, scale=2, lrelu_neg_slope=slope) for upsample in range(n_upsample) ]
 
         hr_convs = [ nn.Conv2d(nf, nf, kernel_size=3, padding=1),
+                     nn.LeakyReLU(negative_slope=slope), 
                      nn.Conv2d(nf, out_nc, kernel_size=3, padding=1) ]
         
         self.model = nn.Sequential(
