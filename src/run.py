@@ -23,6 +23,38 @@ import train
 import test
 
 def main():
+    cfg: config.Config = argv_to_cfg()
+    if (not cfg.is_test and not cfg.is_train) or (cfg.is_test and cfg.is_train):
+        print("pass either --test or --train as args, and optionally --cfg path/to/config.ini if config/ESRDGAN_config.ini isn't what you're planning on using.")
+        return 
+    
+    setup_ok: bool = safe_setup_env_and_cfg(cfg)
+    if not setup_ok:
+        print("Aborting")
+        return
+
+    setup_logger(cfg)
+    status_logger = logging.getLogger("status")
+    status_logger.info(f"initialized with config:\n\n{cfg}")
+
+    setup_torch(cfg)
+    gpu_name = torch.cuda.get_device_name(cfg.gpu_id) if not cfg.gpu_id is None else "cpu"
+    status_logger.info(f"running with GPU {cfg.gpu_id}: {gpu_name}")
+    
+    
+    if cfg.is_train:
+        status_logger.info("starting training" + ("" if not cfg.is_test else " before testing"))
+        train.train(cfg)
+        status_logger.info("finished training")
+    if cfg.is_test:
+        status_logger.info("starting testing")
+        test.test(cfg)
+        status_logger.info("finished testing")
+
+    status_logger.info(f"log file location: {cfg.env.status_log_file}  run file location: {cfg.env.train_log_file}")
+
+    
+def argv_to_cfg() -> config.Config:
     parser = argparse.ArgumentParser(description="Set config, and set if we\'re doing training or testing.")
     parser.add_argument("--cfg", type=str, default="config/ESRDGAN_config.ini", help="path to config ini file (defaults to /config/ESRDGAN_config.ini)")
     parser.add_argument("--train",  default=False, action="store_true", help="run training with supplied config")
@@ -33,48 +65,15 @@ def main():
     is_train = args.train
     cfg_path = args.cfg
 
-    if (not is_test and not is_train) or (is_test and is_train):
-        print("pass either --test or --train as args, and optionally --cfg path/to/config.ini if config/ESRDGAN_config.ini isn't what you're planning on using.")
-        return 
     cfg = config.Config(cfg_path)
     cfg.is_test = is_test
     cfg.is_train = is_train
 
-    if not setup_env_and_cfg(cfg):
-        print("Aborting")
-        return
-    setup_logger(cfg)
-    status_logger = logging.getLogger("status")
-    status_logger.info(f"initialized with config:\n\n{cfg}")
+    return cfg
 
-    if torch.cuda.is_available():
-        if cfg.gpu_id < torch.cuda.device_count():
-            torch.cuda.device(cfg.gpu_id)
-            gpu_name = torch.cuda.get_device_name(cfg.gpu_id)
-            status_logger.info(f"running with GPU {cfg.gpu_id}: {gpu_name} from config")
-        else:
-            gpu_id = torch.cuda.current_device()
-            gpu_name = torch.cuda.get_device_name(gpu_id)
-            status_logger.info(f"could not run with GPU {cfg.gpu_id}, defaulting to GPU {gpu_id}: {gpu_name}")
-            cfg.gpu_id = gpu_id
-    else:
-        cfg.gpu_id = None
-    
-    if is_train:
-        status_logger.info("starting training" + ("" if not is_test else " before testing"))
-        train.train(cfg)
-        status_logger.info("finished training")
-    if is_test:
-        status_logger.info("starting testing")
-        test.test(cfg)
-        status_logger.info("finished testing")
 
-    status_logger.info(f"log file location: {cfg.env.status_log_file}  run file location: {cfg.env.train_log_file}")
 
-    
-    
-
-def setup_env_and_cfg(cfg: config.Config) -> bool:
+def safe_setup_env_and_cfg(cfg: config.Config) -> bool:
     # store some useful paths in the cfg
     cfg.env.log_folder = cfg.env.root_path + cfg.env.log_subpath
     cfg.env.status_log_file = cfg.env.log_folder+"/"+cfg.name+".log"
@@ -86,7 +85,8 @@ def setup_env_and_cfg(cfg: config.Config) -> bool:
 
     # make necessary paths, but warn user if the run folder overlaps with existing folder.
     makedirs(cfg.env.log_folder)
-    return makedirs_ensure_user_ok(cfg.env.this_runs_folder)
+    is_ok = makedirs_ensure_user_ok(cfg.env.this_runs_folder)
+    return is_ok
 
 def setup_logger(cfg: config.Config):
     # root logger for basic messages
@@ -114,9 +114,19 @@ def setup_logger(cfg: config.Config):
 
     root_logger.info("Initialized status logger")
     train_logger.info("Initialized train logger")
-
-
     return
+
+def setup_torch(cfg: config.Config):
+    if torch.cuda.is_available():
+        if cfg.gpu_id < torch.cuda.device_count():
+            torch.cuda.device(cfg.gpu_id)
+            gpu_name = torch.cuda.get_device_name(cfg.gpu_id)
+        else:
+            gpu_id = torch.cuda.current_device()
+            gpu_name = torch.cuda.get_device_name(gpu_id)
+            cfg.gpu_id = gpu_id
+    else:
+        cfg.gpu_id = None
 
 def makedirs(path):
     if not os.path.exists(path):
