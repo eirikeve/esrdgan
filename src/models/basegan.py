@@ -10,12 +10,14 @@ import torch
 import torch.nn as nn
 
 import config.config as config
+import models.modules.loggingclass as lc
 
-class BaseGAN:
+class BaseGAN(lc.GlobalLoggingClass):
     # Generator, discriminator
     G: nn.Module = None
     D: nn.Module = None
     def __init__(self, cfg: config.Config):
+        super(BaseGAN, self).__init__()
         self.cfg = cfg
         self.device = torch.device("cuda" if cfg.gpu_id is not None else "cpu")
         self.is_train = cfg.is_train
