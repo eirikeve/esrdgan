@@ -13,9 +13,9 @@ import torch
 import torch.nn as nn
 
 import models.modules.blocks as blocks
-import models.modules.loggingclass as loggingclass
+import models.modules.loggingclass as lc
 
-class ESRDnet(nn.Module, loggingclass.LoggingClass):
+class ESRDnet(nn.Module, lc.GlobalLoggingClass):
     def __init__(self, in_nc: int, out_nc: int, nf: int,
                  n_rrdb: int, upscale: int=4,
                  n_rdb_convs: int = 5, rdb_gc: int=32, 
