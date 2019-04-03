@@ -12,9 +12,9 @@ import torch
 import torch.nn as nn
 
 import models.modules.blocks as blocks
-import models.modules.loggingclass as loggingclass
+import models.modules.loggingclass as lc
 
-class VGG128Discriminator(nn.Module, loggingclass.LoggingClass):
+class VGG128Discriminator(nn.Module, lc.GlobalLoggingClass):
     """
     VGG Style discriminator for 128x128 images
     Based on,
