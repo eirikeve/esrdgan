@@ -4,6 +4,8 @@ Written by Eirik Vesterkjær, 2019
 Apache License
 
 Implements some useful block structures for nn architectures
+
+Partially based on codes/models/modules/block.py in https://github.com/xinntao/BasicSR
 """
 
 import torch
@@ -15,8 +17,6 @@ class SkipConnectionBlock(nn.Module):
         self.module = submodule
     def forward(self, x):
         return x + self.module(x)
-
-
 
 
 class RDB_Conv(nn.Module):
