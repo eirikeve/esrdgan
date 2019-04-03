@@ -92,23 +92,24 @@ class FeatureExtractorConfig(IniConfig):
 
 class DatasetConfig(IniConfig):
     name: str = "default_dataset_name"
-    dataroot_hr: str = "default_path"
+    dataroot: str = "default_path"
     n_workers: int      = 16
     batch_size: int     = 16
     img_size: int       = 192
     data_aug_gaussian_noise: bool = True
+    gaussian_stddev: float = 0.01
     data_aug_shuffle: bool = True
     data_aug_flip: bool = True
     data_aug_rot: bool = True
-    
 
     def setDatasetConfig(self, data_config):
         self.name = data_config.get("name")
-        self.dataroot_hr = data_config.get("dataroot_hr")
+        self.dataroot = data_config.get("dataroot")
         self.n_workers = data_config.getint("n_workers")
         self.batch_size = data_config.getint("batch_size")
         self.img_size = data_config.getint("img_size")
         self.data_aug_gaussian_noise = data_config.getboolean("data_aug_gaussian_noise")
+        self.gaussian_stddev = data_config.getfloat("gaussian_stddev")
         self.data_aug_shuffle = data_config.getboolean("data_aug_shuffle")
         self.data_aug_flip = data_config.getboolean("data_aug_flip")
         self.data_aug_rot = data_config.getboolean("data_aug_rot")
