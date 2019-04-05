@@ -82,6 +82,10 @@ class DownsamplerImageset(data.Dataset):
         lr_sz = hr_sz // self.cfg.scale
 
         hr_path = self.hr_img_paths[idx]
+        hr_name = os.path.basename(hr_path)
+        hr_name = os.path.splitext(hr_name)[0]
+        
+        
 
         hr = cv2.imread(hr_path,cv2.IMREAD_UNCHANGED)
         # randomly crop if the image is larger than the target dataset h,w
@@ -106,7 +110,8 @@ class DownsamplerImageset(data.Dataset):
         if self.transforms:
             hr = self.transforms(hr)
             lr = self.transforms(lr)
-        return lr, hr
+
+        return {"LR": lr, "HR": hr, "hr_name": hr_name}
 
 
         

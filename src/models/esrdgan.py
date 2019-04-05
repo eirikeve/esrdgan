@@ -204,9 +204,11 @@ class ESRDGAN(basegan.BaseGAN):
             if self.pixel_criterion:
                 loss_G_pix = self.pixel_criterion(self.hr, self.fake_hr)
 
-            loss_G = loss_G_GAN  * self.cfg.training.gan_weight + \
-                     loss_G_feat * self.cfg.training.feature_weight + \
-                     loss_G_pix  * self.cfg.training.pixel_weight
+            loss_G_GAN *= self.cfg.training.gan_weight
+            loss_G_feat *= self.cfg.training.feature_weight
+            loss_G_pix *= self.cfg.training.pixel_weight
+
+            loss_G = loss_G_GAN + loss_G_feat + loss_G_pix 
             
             loss_D.mul_(1.0 / current_batch_size)
             loss_G.backward()

@@ -12,7 +12,6 @@ import random
 import os
 
 import cv2
-import progressbar
 import torch
 import torch.cuda
 import torch.nn as nn
@@ -21,6 +20,7 @@ import torch.nn as nn
 import config.config as config
 import data.imageset as imageset
 import models.esrdgan as esrdgan
+import iocomponents.displaybar as displaybar
 
 def train(cfg: config.Config):
     cfg_t = cfg.training
@@ -73,23 +73,27 @@ def train(cfg: config.Config):
                 start_epoch = loaded_epoch
                 it = loaded_it
 
-    progressbar_widgets = [
-        " ", progressbar.AnimatedMarker(), " Epoch progress: (", 
-        progressbar.Counter(format='%(value)04d/%(max_value)04d'), ") ", progressbar.Bar(), " ",
-        progressbar.Timer(), " ", progressbar.ETA()
-    ]
+    bar = displaybar.DisplayBar(max_value=len(dataloader_train), start_epoch=start_epoch, start_it=it)
+    
+    status_logger.info("train.py: storing LR and HR validation images in run folder, for reference")
+    store_lr_hr_in_runs_folder(cfg, dataloader_val)
 
+    status_logger.info(f"train.py: beginning run from epoch {start_epoch}, it {it}")
 
     for epoch in range(start_epoch, count_train_epochs + 1):
-        status_logger.info(f"Epoch {epoch}")
 
-        for (lr, hr) in progressbar.progressbar(dataloader_train, redirect_stdout = True, widgets=progressbar_widgets):
+        # dataloader -> (lr, hr, hr_img_name)
+        for i, data in enumerate(dataloader_train):
             if it > cfg_t.niter:
                 break
             it += 1
+            bar.update(i, epoch, it)
+            
+            
 
-            lr = lr.to(cfg.device)
-            hr = hr.to(cfg.device)
+
+            lr = data["LR"].to(cfg.device)
+            hr = data["HR"].to(cfg.device)
 
             gan.update_learning_rate()
 
@@ -104,33 +108,15 @@ def train(cfg: config.Config):
 
             if it % cfg_t.save_model_period == 0 and it > 0:
                 status_logger.info("saving model")
-                gan.save_model(cfg.env.this_runs_folder, epoch, it)
+                gan.save_model(cfg.env.this_runs_folder, epoch, it)             
 
-            if it % cfg_t.val_period == 0 or it == 0:
-                status_logger.info("train.py: running faked validation :-)")
 
-                for v, (lr_val, hr_val) in enumerate(dataloader_val):
+            if it % cfg_t.val_period == 0:
+                status_logger.info("train.py: saving current visuals")
+                store_current_visuals(cfg, it, gan, dataloader_val)
 
-                    lr_val = lr_val.to(cfg.device)
-                    hr_val = hr_val.to(cfg.device)
+             
 
-                    # new record in # of .calls ?
-                    fake_hr_val_np = gan.G(lr_val).squeeze().detach().cpu().numpy() * 255
-                    hr_val_np = hr_val.squeeze().detach().cpu().numpy() * 255
-
-                    # c,h,w -> cv2 img shape h,w,c
-                    fake_hr_val_np = fake_hr_val_np.transpose((1,2,0))
-                    hr_val_np = hr_val_np.transpose((1,2,0))
-
-                    val_it_path = os.path.join(cfg.env.this_runs_folder + "/", f"{it}_val" )
-
-                    if not os.path.exists(val_it_path):
-                        os.makedirs(val_it_path)
-                    filename_real = os.path.join(val_it_path, f"{it}_val_{v}_real.png")
-                    filename_fake = os.path.join(val_it_path, f"{it}_val_{v}_fake.png")
-
-                    cv2.imwrite(filename_real, hr_val_np)
-                    cv2.imwrite(filename_fake, fake_hr_val_np)
 
 
 
@@ -142,3 +128,47 @@ def train(cfg: config.Config):
 def log_status_logs(status_logger: logging.Logger, logs: list):
     for log in logs:
         status_logger.info(log)
+
+
+def store_lr_hr_in_runs_folder(cfg: config.Config, dataloader_val):
+    for v, val_data in enumerate(dataloader_val):       
+        lr_val = val_data["LR"]
+        hr_val = val_data["HR"]
+        img_name = val_data["hr_name"][0] # indexed due to some bug I can't find. Var is passed as list despite being str
+        
+        lr_val_np = lr_val.squeeze().detach().numpy() * 255
+        hr_val_np = hr_val.squeeze().detach().numpy() * 255     
+        
+        lr_val_np = lr_val_np.transpose((1,2,0))
+        hr_val_np = hr_val_np.transpose((1,2,0))    
+        
+        hr_lr_folder_path = os.path.join(cfg.env.this_runs_folder + "/", f"hr_lr" )
+        
+        filename_lr = os.path.join(hr_lr_folder_path, f"{img_name}_lr.png")
+        filename_hr = os.path.join(hr_lr_folder_path, f"{img_name}.png")
+
+        if not os.path.exists(hr_lr_folder_path):
+            os.makedirs(hr_lr_folder_path)
+
+        cv2.imwrite(filename_lr, lr_val_np)
+        cv2.imwrite(filename_hr, hr_val_np)
+
+def store_current_visuals(cfg: config.Config, it, gan, dataloader_val):
+    for v, val_data in enumerate(dataloader_val):
+
+        lr_val = val_data["LR"].to(cfg.device)
+        img_name = val_data["hr_name"][0] # indexed due to some bug I can't find. Var is passed as list despite being str
+        
+        # new record in # of .calls ?
+        fake_hr_val_np = gan.G(lr_val).squeeze().detach().cpu().numpy() * 255
+        
+        # c,h,w -> cv2 img shape h,w,c
+        fake_hr_val_np = fake_hr_val_np.transpose((1,2,0))
+        
+        val_it_folder_path = os.path.join(cfg.env.this_runs_folder + "/", f"{it}_val" )
+        if not os.path.exists(val_it_folder_path):
+            os.makedirs(val_it_folder_path)
+        
+        filename_hr_generated = os.path.join(val_it_folder_path, f"{img_name}_{it}.png")
+        cv2.imwrite(filename_hr_generated, fake_hr_val_np)
+

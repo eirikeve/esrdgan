@@ -180,6 +180,7 @@ class Config(IniConfig):
     gpu_id:    int = 0
     also_log_to_terminal: bool = True
     load_model_from_save: bool = False
+    display_bar             = True
 
     env: EnvConfig = EnvConfig()
     generator: GeneratorConfig = GeneratorConfig()
@@ -238,6 +239,7 @@ class Config(IniConfig):
         self.also_log_to_terminal = base_config.getboolean("also_log_to_terminal")
         self.gpu_id = base_config.getint("gpu_id")
         self.load_model_from_save = base_config.getboolean("load_model_from_save")
+        self.display_bar = base_config.getboolean("display_bar")
 
 
     def asINI(self) -> str:
