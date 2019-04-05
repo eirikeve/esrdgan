@@ -28,15 +28,17 @@ class EnvConfig(IniConfig):
     root_path: str   = "~/Programming/esdrgan"
     log_subpath: str = "/log"
     runs_subpath: str = "/runs"
-    generator_load_subpath: str = None
-    discriminator_load_subpath: str = None
+    generator_load_path: str = None
+    discriminator_load_path: str = None
+    state_load_path: str = None
 
     def setEnvConfig(self, env_config):
         self.root_path = env_config.get("root_path")
         self.log_subpath = env_config.get("log_subpath")
         self.runs_subpath = env_config.get("runs_subpath")
-        self.generator_load_subpath = env_config.get("generator_load_subpath")
-        self.discriminator_load_subpath = env_config.get("discriminator_load_subpath")
+        self.generator_load_path = env_config.get("generator_load_path")
+        self.discriminator_load_path = env_config.get("discriminator_load_path")
+        self.state_load_path = env_config.get("state_load_path")
 
 class GeneratorConfig(IniConfig):
     norm_type: str = "none"
@@ -167,7 +169,7 @@ class TrainingConfig(IniConfig):
         self.niter = train_config.getint("niter")
         self.val_period = train_config.getint("val_period")
         self.save_model_period = train_config.getint("save_model_period")
-        self.log_period = train_config.getint("save_model_period")
+        self.log_period = train_config.getint("log_period")
 
 
 class Config(IniConfig):
@@ -177,9 +179,7 @@ class Config(IniConfig):
     scale:      int  = 4
     gpu_id:    int = 0
     also_log_to_terminal: bool = True
-    resume_training_from_save: bool = False
-    generator_load_subpath: str = ""
-    discriminator_load_subpath: str = ""
+    load_model_from_save: bool = False
 
     env: EnvConfig = EnvConfig()
     generator: GeneratorConfig = GeneratorConfig()
@@ -236,8 +236,8 @@ class Config(IniConfig):
         self.use_tensorboard_logger = base_config.getboolean("use_tensorboard_logger")
         self.scale = base_config.getint("scale")
         self.also_log_to_terminal = base_config.getboolean("also_log_to_terminal")
-        # handle no input, int input, or list input
         self.gpu_id = base_config.getint("gpu_id")
+        self.load_model_from_save = base_config.getboolean("load_model_from_save")
 
 
     def asINI(self) -> str:

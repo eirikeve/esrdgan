@@ -44,6 +44,7 @@ def main():
         status_logger.info("run.py: starting training" + ("" if not cfg.is_test else " before testing"))
         train.train(cfg)
         status_logger.info("run.py: finished training")
+        cfg.is_train = False
     if cfg.is_test:
         status_logger.info("run.py: starting testing")
         test.test(cfg)
@@ -77,9 +78,6 @@ def safe_setup_env_and_cfg(cfg: config.Config) -> bool:
     cfg.env.status_log_file = cfg.env.log_folder+"/"+cfg.name+".log"
     cfg.env.this_runs_folder = cfg.env.root_path + cfg.env.runs_subpath+"/"+cfg.name
     cfg.env.train_log_file = cfg.env.this_runs_folder+"/"+cfg.name+".train"
-    if cfg.training.resume_training_from_save:
-        cfg.env.generator_load_path = cfg.env.root_path + cfg.env.generator_load_subpath
-        cfg.env.discriminator_load_path = cfg.env.root_path + cfg.env.discriminator_load_subpath
 
     # make necessary paths, but warn user if the run folder overlaps with existing folder.
     makedirs(cfg.env.log_folder)
@@ -93,7 +91,7 @@ def setup_logger(cfg: config.Config):
 
     root_logger = logging.getLogger("status")
     root_logger.setLevel(logging.INFO)
-    root_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    root_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(filename)s: %(message)s")
 
     log_handler = logging.FileHandler(cfg.env.status_log_file, mode='a')
     log_handler.setFormatter(root_formatter)
@@ -130,7 +128,7 @@ def makedirs_ensure_user_ok(path) -> bool:
         os.makedirs(path)
         return True
     else:
-        print(f"Folder {path} exists. Are you sure you want to run with the same run name? Files may be overwritten. [Y/n]")
+        print(f"Folder {path} exists.\nAre you sure you want to run with the same run name? Files may be overwritten. [Y/n]")
         return get_yes_or_no_input()
         
 

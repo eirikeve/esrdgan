@@ -25,7 +25,7 @@ class VGG128Discriminator(nn.Module, lc.GlobalLoggingClass):
                  norm_type: str="batch", act_type:str = "leakyrelu", 
                  mode="CNA", device=torch.device("cpu")):
         super(VGG128Discriminator, self).__init__()
-
+        self.base_nf = base_nf
         slope = 0
         if act_type == "leakyrelu":
             slope = 0.2
@@ -61,4 +61,7 @@ class VGG128Discriminator(nn.Module, lc.GlobalLoggingClass):
         self.status_logs.append(f"VGG128: finished init")
 
     def forward(self, x):
-        return self.classifier(self.features(x))
+        x = self.features(x)
+        # flatten
+        x = x.reshape(x.shape[0],-1)
+        return self.classifier(x)

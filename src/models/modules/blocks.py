@@ -28,9 +28,9 @@ class RDB_Conv(nn.Module):
                 nn.Conv2d( num_chan, growth_chan, kern_size, padding=(kern_size-1)//2, stride=1 ),
                 nn.LeakyReLU(negative_slope=lrelu_neg_slope)
             )
-        def forward(self, x):
-            out = self.conv(x)
-            return torch.cat((x, out), 1)
+    def forward(self, x):
+        out = self.conv(x)
+        return torch.cat((x, out), 1)
 
 class RDB(nn.Module):
     """
@@ -41,21 +41,22 @@ class RDB(nn.Module):
                  lrelu_neg_slope: float = 0.2, res_scaling = 0.2):
         super(RDB, self).__init__()
         self.res_scaling = res_scaling
-        modules = []
 
-        for k in range(num_convs - 1):
-            in_ch = num_chan + k * growth_chan
-            modules.append( 
-                RDB_Conv( in_ch, growth_chan, lrelu_neg_slope=lrelu_neg_slope )
-            )
+        self.conv1 = RDB_Conv(num_chan,                  growth_chan, lrelu_neg_slope=lrelu_neg_slope)
+        self.conv2 = RDB_Conv(num_chan +   growth_chan,  growth_chan, lrelu_neg_slope=lrelu_neg_slope)
+        self.conv3 = RDB_Conv(num_chan + 2*growth_chan,  growth_chan, lrelu_neg_slope=lrelu_neg_slope)
+        self.conv4 = RDB_Conv(num_chan + 3*growth_chan,  growth_chan, lrelu_neg_slope=lrelu_neg_slope)
+
         # TODO: ESDRGAN uses 3x3 kernel here. Is it a bug in their code, or intentional?
         # In https://arxiv.org/pdf/1802.08797.pdf it's specified that LFF should have a 1x1 kern.
-        LFF = nn.Conv2d( num_chan + (num_convs-1)*growth_chan, num_chan, kernel_size=3, padding=1 )
-        modules.append(LFF)
-        self.modules = nn.Sequential(*modules)
+        self.LFF = nn.Conv2d( num_chan + 4*growth_chan, num_chan, kernel_size=1, padding=0 )
 
     def forward(self, x):
-        residual = self.modules(x)
+        res1 = self.conv1(x)
+        res2 = self.conv2(res1)
+        res3 = self.conv3(res2)
+        res4 = self.conv4(res3)
+        residual = self.LFF(res4)
         return  residual.mul(self.res_scaling) + x
 
 class RRDB(nn.Module):
@@ -106,7 +107,7 @@ class StridedDownConv_2x(nn.Module):
         module.append(nn.LeakyReLU(negative_slope=lrelu_neg_slope))
 
         # Strided conv for downsampling
-        module.append(nn.Conv2d(out_num_chan, out_num_chan, kernel_size=4, padding=0, stride=2))
+        module.append(nn.Conv2d(out_num_chan, out_num_chan, kernel_size=4, padding=1, stride=2))
         norm_layer = norm(out_num_chan, norm_type)
         if norm(out_num_chan, norm_type) is not None:
             module.append(norm_layer)

@@ -44,6 +44,8 @@ class VGG19FeatureExtractor(nn.Module):
             x = (x - self.mean) / self.std
         x1 = self.features_low(x)
         x2 = self.features_high(x1)
+        x1 = x1.reshape(x1.shape[0], -1)
+        x2 = x2.reshape(x2.shape[0], -1)
         return torch.cat((x1, x2), 1)
 
         
