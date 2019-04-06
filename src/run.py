@@ -75,13 +75,17 @@ def argv_to_cfg() -> config.Config:
 def safe_setup_env_and_cfg(cfg: config.Config) -> bool:
     # store some useful paths in the cfg
     cfg.env.log_folder = cfg.env.root_path + cfg.env.log_subpath
+    cfg.env.tensorboard_log_folder = cfg.env.root_path + cfg.env.tensorboard_subpath
     cfg.env.status_log_file = cfg.env.log_folder+"/"+cfg.name+".log"
     cfg.env.this_runs_folder = cfg.env.root_path + cfg.env.runs_subpath+"/"+cfg.name
+    cfg.env.this_runs_tensorboard_log_folder = cfg.env.tensorboard_log_folder + "/" + cfg.name
     cfg.env.train_log_file = cfg.env.this_runs_folder+"/"+cfg.name+".train"
 
     # make necessary paths, but warn user if the run folder overlaps with existing folder.
     makedirs(cfg.env.log_folder)
+    makedirs(cfg.env.tensorboard_log_folder)
     is_ok = makedirs_ensure_user_ok(cfg.env.this_runs_folder)
+    makedirs(cfg.env.this_runs_tensorboard_log_folder)
     return is_ok
 
 def setup_logger(cfg: config.Config):
@@ -90,16 +94,18 @@ def setup_logger(cfg: config.Config):
     
 
     root_logger = logging.getLogger("status")
-    root_logger.setLevel(logging.INFO)
+    root_logger.setLevel(logging.DEBUG)
     root_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(filename)s: %(message)s")
 
     log_handler = logging.FileHandler(cfg.env.status_log_file, mode='a')
     log_handler.setFormatter(root_formatter)
+    log_handler.setLevel(logging.DEBUG)
     root_logger.addHandler(log_handler)
     
     if cfg.also_log_to_terminal:
         term_handler = logging.StreamHandler()
         term_handler.setFormatter(root_formatter)
+        term_handler.setLevel(logging.INFO)
         root_logger.addHandler(term_handler)
     # train logger for logging losses during training
     train_logger = logging.getLogger("train")

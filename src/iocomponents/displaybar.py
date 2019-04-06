@@ -25,7 +25,7 @@ class DisplayBar():
             " [", progressbar.AnimatedMarker(), "] ",
             self.progressbar_it_epoch, " ",
             progressbar.Bar(), " ",
-            progressbar.Timer(format='T: %(elapsed)s'), " ", progressbar.ETA()
+            progressbar.Timer(format='T: %(elapsed)s'), " ", progressbar.AdaptiveETA()
         ]
 
         self.bar = progressbar.ProgressBar(max_value=max_value,

@@ -44,13 +44,17 @@ def createDataloader(cfg: config.Config, is_train_dataloader: bool = True) -> da
         dataset = DownsamplerImageset(cfg, cfg_d, tf)
     else:
         dataset = DownsamplerImageset(cfg, cfg_d, None)
-   
+    do_drop_last = True
+    if not is_train_dataloader:
+        do_drop_last = False
+
     dataloader = data.DataLoader(   dataset,
                                     batch_size=cfg_d.batch_size,
                                     shuffle=cfg_d.data_aug_shuffle,
                                     num_workers=cfg_d.n_workers,
-                                    drop_last=True,
+                                    drop_last=do_drop_last,
                                     pin_memory=True)
+
     return dataloader
 
 

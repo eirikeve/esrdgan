@@ -7,6 +7,7 @@ Implements the ESRD GAN model
 """
 
 import logging
+import math
 
 import torch
 import torch.nn as nn
@@ -19,22 +20,45 @@ import models.architectures.discriminator as discriminator
 import models.architectures.featureextractor as featureextractor
 import models.architectures.generator as generator
 import models.modules.loggingclass as loggingclass
+import models.modules.trainingtricks as trainingtricks
 
 
 class ESRDGAN(basegan.BaseGAN):
     # feature extractor. Generator and discriminator are defined in BaseGAN
     F: nn.Module = None
 
-
-
     def __init__(self, cfg: config.Config):
         super(ESRDGAN, self).__init__(cfg) # BaseGAN
         self.optimizers = []
         self.schedulers = []
+        self.loss_dict = {
+            "train_loss_D": 0.0,
+            "train_loss_G": 0.0,
+            "train_loss_G_GAN": 0.0,
+            "train_loss_G_feat": 0.0,
+            "train_loss_G_pix": 0.0,
+            "val_loss_D": 0.0,
+            "val_loss_G": 0.0,
+            "val_loss_G_GAN": 0.0,
+            "val_loss_G_feat": 0.0,
+            "val_loss_G_pix": 0.0,
+        }
+        self.hist_dict = {
+            "val_grad_G_first_layer": 0.0,
+            "val_grad_G_last_layer": 0.0,
+            "val_grad_D_first_layer": -1.0,
+            "val_grad_D_last_layer": -1.0,
+            "val_weight_G_first_layer": 0.0,
+            "val_weight_G_last_layer": 0.0,
+            "val_weight_D_first_layer": -1.0,
+            "val_weight_D_last_layer": -1.0,
+        }
 
+        self.metrics_dict = {
+            "val_PSNR": 0.0,
+        }
         self.batch_size = cfg.dataset_train.batch_size
-        self.y_is_real = torch.FloatTensor(self.batch_size).fill_(1.0).to(self.cfg.device)
-        self.y_is_fake = torch.FloatTensor(self.batch_size).fill_(0.0).to(self.cfg.device)
+        self.make_new_labels() # updates self.y_is_real, self.y_is_fake
 
         ###################
         # Define generator, discriminator, feature extractor
@@ -82,12 +106,19 @@ class ESRDGAN(basegan.BaseGAN):
         ###################
         # Define optimizers, schedulers, and losses
         ###################
-        
+
         cfg_t: config.TrainingConfig = cfg.training
-        self.optimizer_G = torch.optim.Adam( self.G.parameters(), lr=cfg_t.learning_rate_g )
-        self.optimizer_D = torch.optim.Adam( self.D.parameters(), lr=cfg_t.learning_rate_d )
+        self.optimizer_G = torch.optim.Adam( self.G.parameters(),
+                                             lr=cfg_t.learning_rate_g,
+                                             weight_decay=cfg_t.adam_weight_decay_g,
+                                             betas=(cfg_t.adam_beta1_g, 0.999))
+        self.optimizer_D = torch.optim.Adam( self.D.parameters(),
+                                             lr=cfg_t.learning_rate_d,
+                                             weight_decay=cfg_t.adam_weight_decay_d,
+                                             betas=(cfg_t.adam_beta1_d, 0.999))
         self.optimizers.append(self.optimizer_G)
         self.optimizers.append(self.optimizer_D)
+    
         if cfg_t.multistep_lr_steps:
             self.scheduler_G = lr_scheduler.MultiStepLR(self.optimizer_G, cfg_t.multistep_lr_steps, gamma=cfg_t.lr_gamma)
             self.scheduler_D = lr_scheduler.MultiStepLR(self.optimizer_D, cfg_t.multistep_lr_steps, gamma=cfg_t.lr_gamma)
@@ -123,11 +154,22 @@ class ESRDGAN(basegan.BaseGAN):
         self.lr = lr
         self.hr = hr
     
-    def optimize_parameters(self, it: int):
+
+    def process_data(self,  training_epoch: bool = False,
+                            validation_epoch: bool = False):
+        """
+        process_data
+        computes losses, and if it is a training epoch, performs parameter optimization
+        """
+        if (not training_epoch and not validation_epoch) or \
+           (    training_epoch and     validation_epoch):
+            raise ValueError("process_data requires exactly one input as true")
+
         self.fake_hr = self.G(self.lr)
 
         # squeeze to go from shape [batch_sz, 1] to [batch_sz]
         y_pred = self.D(self.hr).squeeze()
+        # should this be detached to avoid BP to G?
         fake_y_pred = self.D(self.fake_hr).squeeze()
 
         # changes when going from train <-> val <-> test
@@ -135,8 +177,7 @@ class ESRDGAN(basegan.BaseGAN):
         current_batch_size = y_pred.size(0)
         if current_batch_size != self.batch_size:
             self.batch_size = current_batch_size
-            self.y_is_real = torch.FloatTensor(current_batch_size).fill_(1.0).to(self.cfg.device)
-            self.y_is_fake = torch.FloatTensor(current_batch_size).fill_(0.0).to(self.cfg.device)
+            self.make_new_labels()
             
         
         
@@ -162,11 +203,27 @@ class ESRDGAN(basegan.BaseGAN):
         else:
             raise NotImplementedError(f"Only relativistic and relativisticavg GAN are implemented, not {self.cfg.training.gan_type}")
         
-        # normalize by batch sz
-        loss_D.mul_(1.0 / current_batch_size)
-
+        # normalize by batch sz, this is not done in ESRGAN
+        #loss_D.mul_(1.0 / current_batch_size)
         loss_D.backward(retain_graph=True)
-        self.optimizer_D.step()
+        if training_epoch:
+            self.loss_dict["train_loss_D"] = loss_D.item()
+            self.optimizer_D.step()
+        else:
+            # features[0] is StridedDownConv2x, whose first elem is a nn.Conv2D
+            grad_start = self.D.features[0].strideddownconv[0].weight.grad.detach().cpu()
+            weight_start = self.D.features[0].strideddownconv[0].weight.detach().cpu()
+            # classifier[-1] is nn.Linear, whose first elem is a nn.Conv2D
+            grad_end = self.D.classifier[-1].weight.grad.detach().cpu()
+            weight_end = self.D.classifier[-1].weight.detach().cpu()
+            self.hist_dict["val_grad_D_first_layer"] = grad_start.numpy()
+            self.hist_dict["val_grad_D_last_layer"] = grad_end.numpy()
+            self.hist_dict["val_weight_D_first_layer"] = weight_start.numpy()
+            self.hist_dict["val_weight_D_last_layer"] = weight_end.numpy()
+            self.loss_dict["val_loss_D"] = loss_D.item()
+       
+
+
 
         ###################
         # Update G 
@@ -210,18 +267,69 @@ class ESRDGAN(basegan.BaseGAN):
 
             loss_G = loss_G_GAN + loss_G_feat + loss_G_pix 
             
-            loss_D.mul_(1.0 / current_batch_size)
+            # normalize by batch sz, this is not done in ESRGAN
+            # loss_D.mul_(1.0 / current_batch_size)
+
             loss_G.backward()
-            self.optimizer_G.step()
+            if training_epoch:
+                self.loss_dict["train_loss_G"] = loss_G.item()
+                self.loss_dict["train_loss_G_GAN"] = loss_G_GAN.item()
+                self.loss_dict["train_loss_G_feat"] = loss_G_feat.item()
+                self.loss_dict["train_loss_G_pix"] = loss_G_pix.item()
+                self.optimizer_G.step()
+            else:
+                self.loss_dict["val_loss_G"] = loss_G.item()
+                self.loss_dict["val_loss_G_GAN"] = loss_G_GAN.item()
+                self.loss_dict["val_loss_G_feat"] = loss_G_feat.item()
+                self.loss_dict["val_loss_G_pix"] = loss_G_pix.item()
+                grad_start = self.G.model[0].weight.grad.cpu().detach()
+                grad_end = self.G.model[-1].weight.grad.cpu().detach()
+                weight_start = self.G.model[0].weight.cpu().detach()
+                weight_end = self.G.model[-1].weight.cpu().detach()
+                self.hist_dict["val_grad_G_first_layer"] = grad_start.numpy()
+                self.hist_dict["val_grad_G_last_layer"] = grad_end.numpy()
+                self.hist_dict["val_weight_G_first_layer"] = weight_start.numpy()
+                self.hist_dict["val_weight_G_last_layer"] = weight_end.numpy()
 
-        ###################
-        # train log 
-        ###################
+    def optimize_parameters(self):
+        self.process_data(training_epoch=True)
 
-        if it % self.cfg.training.log_period == 0:
-            self.status_logs.append(f"it:{it} loss_D:{loss_D.item()} loss_G:{loss_G.item()} loss_G_GAN:{loss_G_GAN.item()} loss_G_pix:{loss_G_pix.item()} loss_G_feat:{loss_G_feat.item()} D(hr):{torch.mean(y_pred.detach())} D(fake_hr):{torch.mean(fake_y_pred.detach())}")
+    def validation(self):
+        self.process_data(validation_epoch=True)
+        self.compute_psnr_x_batch_size()
+
+    def compute_psnr_x_batch_size(self):
+        #zeros = torch.FloatTensor(self.batch_size).fill_(0.0).to(self.cfg.device)
+        w,h = self.hr.shape[2], self.hr.shape[3]
+        batch_MSE = torch.sum( (self.hr - self.fake_hr)**2 ) / (w*h)
+        batch_MSE = batch_MSE.item()
+        R_squared = 1.0 # R is max fluctuation, and data is float [0, 1] -> R² = 1
+        epsilon = 1e-8 # PSNR is usually ~< 50 so this should not impact the result much
+        self.metrics_dict["val_PSNR"] = self.batch_size * 10 * math.log10(R_squared / (batch_MSE + epsilon))
+
+
+    def make_new_labels(self):
+        if self.cfg.training.use_noisy_labels:
+            self.y_is_real = trainingtricks.noisy_labels(True,  self.batch_size).to(self.device)
+            self.y_is_fake = trainingtricks.noisy_labels(False, self.batch_size).to(self.device)
+        else:
+            self.y_is_real = torch.FloatTensor(self.batch_size).fill_(1.0).to(self.cfg.device)
+            self.y_is_fake = torch.FloatTensor(self.batch_size).fill_(0.0).to(self.cfg.device)
         
 
+
+    def test(self):
+        raise NotImplementedError("test has not been implemented.")
+
+
+    def get_loss_dict_ref(self):
+        return self.loss_dict
+
+    def get_hist_dict_ref(self):
+        return self.hist_dict
+
+    def get_metrics_dict_ref(self):
+        return self.metrics_dict
 
 
 
@@ -243,7 +351,6 @@ class ESRDGAN(basegan.BaseGAN):
         D_params = sum(par.numel() for par in self.D.parameters() if par.requires_grad)
         F_params = sum(par.numel() for par in self.F.parameters() if par.requires_grad)
         return G_params, D_params, F_params       
-    
 
     def __str__(self):
         G_params, D_params, F_params = self.count_params()

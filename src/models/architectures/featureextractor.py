@@ -32,20 +32,29 @@ class VGG19FeatureExtractor(nn.Module):
             self.register_buffer('mean', mean)
             self.register_buffer('std', std)
         
-        self.features_low = nn.Sequential(*list(model.features.children())[:(low_level_feature_layer + 1)])
-        self.features_high = nn.Sequential(*list(model.features.children())[(low_level_feature_layer + 1) : (high_level_feature_layer+1)])
-        for _, v in self.features_low.named_parameters():
-            v.requires_grad = False
+        if low_level_feature_layer is not None and low_level_feature_layer > 0:
+            self.dual_output = True
+        
+            self.features_low = nn.Sequential(*list(model.features.children())[:(low_level_feature_layer + 1)])
+            self.features_high = nn.Sequential(*list(model.features.children())[(low_level_feature_layer + 1) : (high_level_feature_layer+1)])
+            for _, v in self.features_low.named_parameters():
+                v.requires_grad = False
+        else:
+            self.dual_output = False
+            self.features_high = nn.Sequential(*list(model.features.children())[: (high_level_feature_layer+1)])
+        
         for _, v in self.features_high.named_parameters():
             v.requires_grad = False
 
     def forward(self, x):
         if self.use_input_norm:
             x = (x - self.mean) / self.std
-        x1 = self.features_low(x)
-        x2 = self.features_high(x1)
-        x1 = x1.reshape(x1.shape[0], -1)
-        x2 = x2.reshape(x2.shape[0], -1)
-        return torch.cat((x1, x2), 1)
+        if self.dual_output:
+            x1 = self.features_low(x)
+            x2 = self.features_high(x1)
+            x1 = x1.reshape(x1.shape[0], -1)
+            x2 = x2.reshape(x2.shape[0], -1)
+            return torch.cat((x1, x2), 1)
+        return self.features_high(x)
 
         

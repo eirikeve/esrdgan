@@ -27,14 +27,17 @@ class IniConfig:
 class EnvConfig(IniConfig):
     root_path: str   = "~/Programming/esdrgan"
     log_subpath: str = "/log"
+    tensorboard_subpath: str = "/tensorboard_log"
     runs_subpath: str = "/runs"
     generator_load_path: str = None
     discriminator_load_path: str = None
     state_load_path: str = None
+    
 
     def setEnvConfig(self, env_config):
         self.root_path = env_config.get("root_path")
         self.log_subpath = env_config.get("log_subpath")
+        self.tensorboard_subpath = env_config.get("tensorboard_subpath")
         self.runs_subpath = env_config.get("runs_subpath")
         self.generator_load_path = env_config.get("generator_load_path")
         self.discriminator_load_path = env_config.get("discriminator_load_path")
@@ -127,11 +130,13 @@ class DatasetTestConfig(DatasetConfig):
 
 class TrainingConfig(IniConfig):
     resume_training_from_save: bool = False
-    resume_epoch: int = 0
-    resume_iter: int = 0
 
     learning_rate_g: float = 1e-4
     learning_rate_d: float = 1e-4
+    adam_weight_decay_g: float = 0
+    adam_weight_decay_d: float = 0
+    adam_beta1_g: float = 0.9
+    adam_beta1_d: float = 0.9
     multistep_lr: bool = True
     multistep_lr_steps: list = [50000, 100000, 200000, 300000]
     lr_gamma: float = 0.5
@@ -146,6 +151,8 @@ class TrainingConfig(IniConfig):
     feature_criterion: str = "l2"
     feature_weight: float = 1.0
 
+    use_noisy_labels: bool = False
+
     niter: int = 5e5
     val_period: int = 2e3
     save_model_period: int = 2e3
@@ -153,10 +160,12 @@ class TrainingConfig(IniConfig):
 
     def setTrainingConfig(self, train_config):
         self.resume_training_from_save = train_config.getboolean("resume_training_from_save")
-        self.resume_epoch = train_config.getint("resume_epoch")
-        self.resume_iter = train_config.getint("resume_iter")
         self.learning_rate_g = train_config.getfloat("learning_rate_g")
         self.learning_rate_d = train_config.getfloat("learning_rate_d")
+        self.adam_weight_decay_g = train_config.getfloat("adam_weight_decay_g")
+        self.adam_weight_decay_d = train_config.getfloat("adam_weight_decay_d")
+        self.adam_beta1_g = train_config.getfloat("adam_beta1_g")
+        self.adam_beta1_d = train_config.getfloat("adam_beta1_d")
         self.multistep_lr = train_config.getboolean("multistep_lr")
         self.multistep_lr_steps = safe_list_from_string( train_config.get("multistep_lr_steps"), int )
         self.lr_gamma = train_config.getfloat("lr_gamma")
@@ -166,6 +175,7 @@ class TrainingConfig(IniConfig):
         self.pixel_weight = train_config.getfloat("pixel_weight")
         self.feature_criterion = train_config.get("feature_criterion")
         self.feature_weight = train_config.getfloat("feature_weight")
+        self.use_noisy_labels = train_config.getboolean("use_noisy_labels")
         self.niter = train_config.getint("niter")
         self.val_period = train_config.getint("val_period")
         self.save_model_period = train_config.getint("save_model_period")
