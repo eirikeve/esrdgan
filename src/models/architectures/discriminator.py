@@ -21,7 +21,7 @@ class VGG128Discriminator(nn.Module, lc.GlobalLoggingClass):
     Recovering Realistic Texture in Image Super-resolution 
      by Deep Spatial Feature Transform (Wang et al.)
     """
-    def __init__(self, in_nc: int, base_nf: int, 
+    def __init__(self, in_nc: int, base_nf: int, feat_kern_size: int = 3,
                  norm_type: str="batch", act_type:str = "leakyrelu", 
                  mode="CNA", device=torch.device("cpu")):
         super(VGG128Discriminator, self).__init__()
@@ -36,17 +36,23 @@ class VGG128Discriminator(nn.Module, lc.GlobalLoggingClass):
             slope = 0.2
 
         features = []
+
         
         # 128x128 -> 64x64
-        features.append(blocks.StridedDownConv_2x(in_nc, base_nf, lrelu_neg_slope=slope, norm_type=norm_type, drop_first_norm=True))
+        features.append(blocks.StridedDownConv_2x(in_nc, base_nf, feat_kern_size=feat_kern_size,  lrelu_neg_slope=slope, 
+                                                  norm_type=norm_type, drop_first_norm=True))
         # 64x64 -> 32x32
-        features.append(blocks.StridedDownConv_2x(base_nf, base_nf * 2, lrelu_neg_slope=slope, norm_type=norm_type, drop_first_norm=False))
+        features.append(blocks.StridedDownConv_2x(base_nf, base_nf * 2, feat_kern_size=feat_kern_size, lrelu_neg_slope=slope, 
+                                                  norm_type=norm_type, drop_first_norm=False))
         # 32x32 -> 16x16
-        features.append(blocks.StridedDownConv_2x(base_nf * 2, base_nf * 4, lrelu_neg_slope=slope, norm_type=norm_type, drop_first_norm=False))
+        features.append(blocks.StridedDownConv_2x(base_nf * 2, base_nf * 4, feat_kern_size=feat_kern_size , lrelu_neg_slope=slope, 
+                                                  norm_type=norm_type, drop_first_norm=False))
         # 16x16 -> 8x8
-        features.append(blocks.StridedDownConv_2x(base_nf * 4, base_nf * 8, lrelu_neg_slope=slope, norm_type=norm_type, drop_first_norm=False))
+        features.append(blocks.StridedDownConv_2x(base_nf * 4, base_nf * 8, feat_kern_size=feat_kern_size, lrelu_neg_slope=slope, 
+                                                  norm_type=norm_type, drop_first_norm=False))
         # 8x8 -> 4x4
-        features.append(blocks.StridedDownConv_2x(base_nf * 8, base_nf * 8, lrelu_neg_slope=slope, norm_type=norm_type, drop_first_norm=False))
+        features.append(blocks.StridedDownConv_2x(base_nf * 8, base_nf * 8, feat_kern_size=feat_kern_size, lrelu_neg_slope=slope, 
+                                                  norm_type=norm_type, drop_first_norm=False))
         # Chans: base_nf*8
         # Dims: 4x4 pixels
         # -> 100 nodes

@@ -85,6 +85,7 @@ class RRDB(nn.Module):
 
 class StridedDownConv_2x(nn.Module):
     def __init__(self, in_num_chan: int, out_num_chan: int,
+                 feat_kern_size: int = 3,
                  lrelu_neg_slope: float = 0.2,
                  norm_type: str ='batch', drop_first_norm: bool=False):
         super(StridedDownConv_2x, self).__init__()
@@ -98,9 +99,18 @@ class StridedDownConv_2x(nn.Module):
                 return nn.InstanceNorm2d(nc)
             else:
                 raise NotImplementedError(f"Unknown norm type {t}")
+        feat_conv_pad = 1
+        if feat_kern_size == 5:
+            feat_conv_pad = 2
+        elif feat_kern_size == 3:
+            pass
+        else:
+            raise NotImplementedError("Only supported kern sizes are 3 and 5")
+
+
         module = []
         # Feature increase
-        module.append(nn.Conv2d(in_num_chan, out_num_chan, kernel_size=3, padding=1, stride=1))
+        module.append(nn.Conv2d(in_num_chan, out_num_chan, kernel_size=feat_kern_size, padding=feat_conv_pad, stride=1))
         norm_layer = norm(out_num_chan, norm_type)
         if not drop_first_norm and norm(out_num_chan, norm_type) is not None:
             module.append(norm_layer)

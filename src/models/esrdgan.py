@@ -69,6 +69,7 @@ class ESRDGAN(basegan.BaseGAN):
                                     cfg_g.num_features,
                                     cfg_g.num_rrdb,
                                     upscale           = cfg.scale,
+                                    hr_kern_size      = cfg_g.hr_kern_size,
                                     n_rdb_convs       = cfg_g.num_rdb_convs,
                                     rdb_gc            = cfg_g.rdb_growth_chan,
                                     rdb_res_scaling   = cfg_g.rdb_res_scaling,
@@ -80,6 +81,7 @@ class ESRDGAN(basegan.BaseGAN):
         if cfg.dataset_train.img_size == 128:
             self.D = discriminator.VGG128Discriminator( cfg_d.in_num_ch,
                                                         cfg_d.num_features,
+                                                        feat_kern_size=cfg_d.feat_kern_size,
                                                         norm_type = cfg_d.norm_type,
                                                         act_type  = cfg_d.act_type,
                                                         mode      = cfg_d.layer_mode,
@@ -172,7 +174,8 @@ class ESRDGAN(basegan.BaseGAN):
         current_batch_size = self.hr.size(0)
         if current_batch_size != self.batch_size:
             self.batch_size = current_batch_size
-            self.make_new_labels()
+        
+        self.make_new_labels()
 
 
 
@@ -241,6 +244,7 @@ class ESRDGAN(basegan.BaseGAN):
             self.hist_dict["val_grad_G_last_layer"] = grad_end.numpy()
             self.hist_dict["val_weight_G_first_layer"] = weight_start.numpy()
             self.hist_dict["val_weight_G_last_layer"] = weight_end.numpy()    
+            self.hist_dict["SR_pix_distribution"] = self.fake_hr.detach().numpy().item()
 
         
         ###################
@@ -285,6 +289,8 @@ class ESRDGAN(basegan.BaseGAN):
             self.hist_dict["val_weight_D_first_layer"] = weight_start.numpy()
             self.hist_dict["val_weight_D_last_layer"] = weight_end.numpy()
             self.loss_dict["val_loss_D"] = loss_D.item()
+            self.hist_dict["D_pred_HR"] = y_pred.detach().numpy().item()
+            self.hist_dict["D_pred_SR"] = fake_y_pred.detach().numpy().item()
        
 
 
@@ -311,8 +317,8 @@ class ESRDGAN(basegan.BaseGAN):
             self.y_is_real = trainingtricks.noisy_labels(True,  self.batch_size).to(self.device)
             self.y_is_fake = trainingtricks.noisy_labels(False, self.batch_size).to(self.device)
         else:
-            self.y_is_real = torch.FloatTensor(self.batch_size).fill_(1.0).to(self.cfg.device)
-            self.y_is_fake = torch.FloatTensor(self.batch_size).fill_(0.0).to(self.cfg.device)
+            self.y_is_real = trainingtricks.noisy_labels(True, self.batch_size, noise_stddev=0.0).to(self.device)
+            self.y_is_fake = trainingtricks.noisy_labels(False, self.batch_size, noise_stddev=0.0).to(self.device)
         
 
 

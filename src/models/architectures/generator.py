@@ -17,7 +17,7 @@ import models.modules.loggingclass as lc
 
 class ESRDnet(nn.Module, lc.GlobalLoggingClass):
     def __init__(self, in_nc: int, out_nc: int, nf: int,
-                 n_rrdb: int, upscale: int=4,
+                 n_rrdb: int, upscale: int=4, hr_kern_size: int = 3,
                  n_rdb_convs: int = 5, rdb_gc: int=32, 
                  rdb_res_scaling: float = 0.2, rrdb_res_scaling: float = 0.2,
                  act_type:str="leakyrelu", device=torch.device("cpu")):
@@ -53,9 +53,17 @@ class ESRDnet(nn.Module, lc.GlobalLoggingClass):
         
         upsampler = [ blocks.UpConv(nf, nf, scale=2, lrelu_neg_slope=slope) for upsample in range(n_upsample) ]
 
-        hr_convs = [ nn.Conv2d(nf, nf, kernel_size=3, padding=1),
+        hr_pad = 1
+        if hr_kern_size == 5:
+            hr_pad = 2
+        elif hr_kern_size == 3:
+            pass
+        else:
+            raise NotImplementedError("Only kern sizes 3 and 5 are supported")
+
+        hr_convs = [ nn.Conv2d(nf, nf, kernel_size=hr_kern_size, padding=hr_pad),
                      nn.LeakyReLU(negative_slope=slope), 
-                     nn.Conv2d(nf, out_nc, kernel_size=3, padding=1) ]
+                     nn.Conv2d(nf, out_nc, kernel_size=hr_kern_size, padding=hr_pad) ]
         
         self.model = nn.Sequential(
             feture_conv,
