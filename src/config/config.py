@@ -57,6 +57,7 @@ class GeneratorConfig(IniConfig):
     out_num_ch: int         = 3
     rdb_growth_chan: int    = 32
     hr_kern_size        :int = 3
+    weight_init_scale: float = 1.0
 
     def setGeneratorConfig(self, gen_config):
         self.norm_type = gen_config.get("norm_type")
@@ -71,6 +72,7 @@ class GeneratorConfig(IniConfig):
         self.out_num_ch = gen_config.getint("out_num_ch")
         self.rdb_growth_chan = gen_config.getint("rdb_growth_chan")
         self.hr_kern_size = gen_config.getint("hr_kern_size")
+        self.weight_init_scale = gen_config.getfloat("weight_init_scale")
 
 class DiscriminatorConfig(IniConfig):
     norm_type: str = "batch"
@@ -78,7 +80,8 @@ class DiscriminatorConfig(IniConfig):
     layer_mode: str = "CNA"
     num_features: int = 64
     in_num_ch: int = 3
-    feat_kern_size: int = 3  
+    feat_kern_size: int = 3
+    weight_init_scale:float = 1.0  
     
     def setDiscriminatorConfig(self, disc_config):
         self.norm_type = disc_config.get("norm_type")
@@ -87,6 +90,7 @@ class DiscriminatorConfig(IniConfig):
         self.num_features = disc_config.getint("num_features")
         self.in_num_ch = disc_config.getint("in_num_ch")
         self.feat_kern_size = disc_config.getint("feat_kern_size")
+        self.weight_init_scale = disc_config.getfloat("weight_init_scale")
 
 
 class FeatureExtractorConfig(IniConfig):

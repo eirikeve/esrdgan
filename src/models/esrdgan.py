@@ -110,9 +110,9 @@ class ESRDGAN(basegan.BaseGAN):
         self.D = self.D.to(cfg.device)
         self.F = self.F.to(cfg.device)
 
-        initialization.init_weights(self.G, scale=0.1)
-        initialization.init_weights(self.D, scale=0.01)
-        
+        initialization.init_weights(self.G, scale=cfg_g.weight_init_scale)
+        initialization.init_weights(self.D, scale=cfg_d.weight_init_scale)
+
         ###################
         # Define optimizers, schedulers, and losses
         ###################
@@ -203,6 +203,8 @@ class ESRDGAN(basegan.BaseGAN):
         # adversarial loss
         loss_G_GAN = 0
 
+        if self.cfg.training.gan_type == 'dcgan':
+            loss_D = self.criterion( fake_y_pred, self.y_is_real ) + self.criterion( y_pred, self.y_is_fake )
         if self.cfg.training.gan_type == 'relativistic':
             loss_G_GAN = self.criterion( fake_y_pred - y_pred, self.y_is_real)
         elif self.cfg.training.gan_type == 'relativisticavg':
