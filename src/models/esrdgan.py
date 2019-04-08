@@ -202,57 +202,59 @@ class ESRDGAN(basegan.BaseGAN):
 
         # adversarial loss
         loss_G_GAN = 0
-        if self.cfg.training.gan_type == 'relativistic':
-            loss_G_GAN = self.criterion( fake_y_pred - y_pred, self.y_is_real)
-        elif self.cfg.training.gan_type == 'relativisticavg':
-            loss_G_GAN = (self.criterion( fake_y_pred - torch.mean(y_pred), self.y_is_real ) + \
-                    self.criterion( y_pred - torch.mean(fake_y_pred), self.y_is_fake )) / 2.0
-        else:
-            raise NotImplementedError(f"Only relativistic and relativisticavg GAN are implemented, not {self.cfg.training.gan_type}")
 
-        # feature loss
-        loss_G_feat = 0
-        if self.feature_criterion:
-            features = self.F(self.hr).detach()
-            fake_features = self.F(self.fake_hr)
-            loss_G_feat = self.feature_criterion(features, fake_features)
-        
-        # pixel loss
-        loss_G_pix = 0
-        if self.pixel_criterion:
-            loss_G_pix = self.pixel_criterion(self.hr, self.fake_hr)
+        if False:
+            if self.cfg.training.gan_type == 'relativistic':
+                loss_G_GAN = self.criterion( fake_y_pred - y_pred, self.y_is_real)
+            elif self.cfg.training.gan_type == 'relativisticavg':
+                loss_G_GAN = (self.criterion( fake_y_pred - torch.mean(y_pred), self.y_is_real ) + \
+                        self.criterion( y_pred - torch.mean(fake_y_pred), self.y_is_fake )) / 2.0
+            else:
+                raise NotImplementedError(f"Only relativistic and relativisticavg GAN are implemented, not {self.cfg.training.gan_type}")
 
-        loss_G_GAN *= self.cfg.training.gan_weight
-        loss_G_feat *= self.cfg.training.feature_weight
-        loss_G_pix *= self.cfg.training.pixel_weight
+            # feature loss
+            loss_G_feat = 0
+            if self.feature_criterion:
+                features = self.F(self.hr).detach()
+                fake_features = self.F(self.fake_hr)
+                loss_G_feat = self.feature_criterion(features, fake_features)
 
-        loss_G = loss_G_GAN + loss_G_feat + loss_G_pix 
-        
-        # normalize by batch sz, this is not done in ESRGAN
-        # loss_D.mul_(1.0 / current_batch_size)
+            # pixel loss
+            loss_G_pix = 0
+            if self.pixel_criterion:
+                loss_G_pix = self.pixel_criterion(self.hr, self.fake_hr)
 
-        loss_G.backward()
+            loss_G_GAN *= self.cfg.training.gan_weight
+            loss_G_feat *= self.cfg.training.feature_weight
+            loss_G_pix *= self.cfg.training.pixel_weight
 
-        if training_epoch:
-            self.loss_dict["train_loss_G"] = loss_G.item()
-            self.loss_dict["train_loss_G_GAN"] = loss_G_GAN.item()
-            self.loss_dict["train_loss_G_feat"] = loss_G_feat.item()
-            self.loss_dict["train_loss_G_pix"] = loss_G_pix.item()
-            self.hist_dict["SR_pix_distribution"] = self.fake_hr.detach().cpu().numpy()
-            self.optimizer_G.step()
-        else:
-            self.loss_dict["val_loss_G"] = loss_G.item()
-            self.loss_dict["val_loss_G_GAN"] = loss_G_GAN.item()
-            self.loss_dict["val_loss_G_feat"] = loss_G_feat.item()
-            self.loss_dict["val_loss_G_pix"] = loss_G_pix.item()
-            grad_start = self.G.model[0].weight.grad.cpu().detach()
-            grad_end = self.G.model[-1].weight.grad.cpu().detach()
-            weight_start = self.G.model[0].weight.cpu().detach()
-            weight_end = self.G.model[-1].weight.cpu().detach()
-            self.hist_dict["val_grad_G_first_layer"] = grad_start.numpy()
-            self.hist_dict["val_grad_G_last_layer"] = grad_end.numpy()
-            self.hist_dict["val_weight_G_first_layer"] = weight_start.numpy()
-            self.hist_dict["val_weight_G_last_layer"] = weight_end.numpy()    
+            loss_G = loss_G_GAN + loss_G_feat + loss_G_pix 
+
+            # normalize by batch sz, this is not done in ESRGAN
+            # loss_D.mul_(1.0 / current_batch_size)
+
+            loss_G.backward()
+
+            if training_epoch:
+                self.loss_dict["train_loss_G"] = loss_G.item()
+                self.loss_dict["train_loss_G_GAN"] = loss_G_GAN.item()
+                self.loss_dict["train_loss_G_feat"] = loss_G_feat.item()
+                self.loss_dict["train_loss_G_pix"] = loss_G_pix.item()
+                self.hist_dict["SR_pix_distribution"] = self.fake_hr.detach().cpu().numpy()
+                self.optimizer_G.step()
+            else:
+                self.loss_dict["val_loss_G"] = loss_G.item()
+                self.loss_dict["val_loss_G_GAN"] = loss_G_GAN.item()
+                self.loss_dict["val_loss_G_feat"] = loss_G_feat.item()
+                self.loss_dict["val_loss_G_pix"] = loss_G_pix.item()
+                grad_start = self.G.model[0].weight.grad.cpu().detach()
+                grad_end = self.G.model[-1].weight.grad.cpu().detach()
+                weight_start = self.G.model[0].weight.cpu().detach()
+                weight_end = self.G.model[-1].weight.cpu().detach()
+                self.hist_dict["val_grad_G_first_layer"] = grad_start.numpy()
+                self.hist_dict["val_grad_G_last_layer"] = grad_end.numpy()
+                self.hist_dict["val_weight_G_first_layer"] = weight_start.numpy()
+                self.hist_dict["val_weight_G_last_layer"] = weight_end.numpy()    
             
 
         
@@ -270,11 +272,13 @@ class ESRDGAN(basegan.BaseGAN):
 
         # squeeze to go from shape [batch_sz, 1] to [batch_sz]
         y_pred = self.D(self.hr).squeeze()
-        fake_y_pred = self.D(self.fake_hr).squeeze().detach() # detach -> avoid BP to G
+        fake_y_pred = self.D(self.fake_hr.detach()).squeeze() # detach -> avoid BP to G
 
         
         # D only has adversarial loss.
         loss_D = None
+        if self.cfg.training.gan_type == 'dcgan':
+            loss_D = self.criterion( y_pred, self.y_is_real ) + self.criterion( fake_y_pred, self.y_is_fake )
         if self.cfg.training.gan_type == 'relativistic':
             loss_D = self.criterion( y_pred - fake_y_pred, self.y_is_real)
         elif self.cfg.training.gan_type == 'relativisticavg':
@@ -289,8 +293,9 @@ class ESRDGAN(basegan.BaseGAN):
 
         if training_epoch:
             self.loss_dict["train_loss_D"] = loss_D.item()
-            self.hist_dict["D_pred_HR"] = y_pred.detach().cpu().numpy()
-            self.hist_dict["D_pred_SR"] = fake_y_pred.detach().cpu().numpy()
+            # BCEWithLogitsLoss has sigmoid activation.
+            self.hist_dict["D_pred_HR"] = torch.nn.functional.sigmoid( y_pred.detach() ).cpu().numpy()
+            self.hist_dict["D_pred_SR"] = torch.nn.functional.sigmoid( fake_y_pred.detach() ).cpu().numpy()
             self.optimizer_D.step()
         else:
             # features[0] is StridedDownConv2x, whose first elem is a nn.Conv2D
