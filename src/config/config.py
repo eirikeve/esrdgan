@@ -156,6 +156,7 @@ class TrainingConfig(IniConfig):
     feature_weight: float = 1.0
 
     use_noisy_labels: bool = False
+    flip_labels: bool = False
 
     niter: int = 5e5
     val_period: int = 2e3
@@ -180,6 +181,7 @@ class TrainingConfig(IniConfig):
         self.feature_criterion = train_config.get("feature_criterion")
         self.feature_weight = train_config.getfloat("feature_weight")
         self.use_noisy_labels = train_config.getboolean("use_noisy_labels")
+        self.flip_labels = train_config.getboolean("flip_labels")
         self.niter = train_config.getint("niter")
         self.val_period = train_config.getint("val_period")
         self.save_model_period = train_config.getint("save_model_period")

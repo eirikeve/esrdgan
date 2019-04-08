@@ -12,6 +12,7 @@ import math
 import torch
 import torch.nn as nn
 
+import functools
 import models.modules.blocks as blocks
 import models.modules.loggingclass as lc
 
@@ -75,3 +76,5 @@ class ESRDnet(nn.Module, lc.GlobalLoggingClass):
 
     def forward(self, x):
         return self.model(x)
+
+

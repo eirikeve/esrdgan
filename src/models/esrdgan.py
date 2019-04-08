@@ -6,6 +6,7 @@ Apache License
 Implements the ESRD GAN model
 """
 
+import functools
 import logging
 import math
 
@@ -19,6 +20,7 @@ import models.basegan as basegan
 import models.architectures.discriminator as discriminator
 import models.architectures.featureextractor as featureextractor
 import models.architectures.generator as generator
+import models.modules.initialization as initialization
 import models.modules.loggingclass as loggingclass
 import models.modules.trainingtricks as trainingtricks
 
@@ -52,6 +54,9 @@ class ESRDGAN(basegan.BaseGAN):
             "val_weight_G_last_layer": 0.0,
             "val_weight_D_first_layer": -1.0,
             "val_weight_D_last_layer": -1.0,
+            "SR_pix_distribution": 0.0,
+            "D_pred_HR": 0.0,
+            "D_pred_SR": 0.0,
         }
 
         self.metrics_dict = {
@@ -104,6 +109,9 @@ class ESRDGAN(basegan.BaseGAN):
         self.G = self.G.to(cfg.device)
         self.D = self.D.to(cfg.device)
         self.F = self.F.to(cfg.device)
+
+        initialization.init_weights(self.G, scale=0.1)
+        initialization.init_weights(self.D, scale=0.01)
         
         ###################
         # Define optimizers, schedulers, and losses
@@ -230,6 +238,7 @@ class ESRDGAN(basegan.BaseGAN):
             self.loss_dict["train_loss_G_GAN"] = loss_G_GAN.item()
             self.loss_dict["train_loss_G_feat"] = loss_G_feat.item()
             self.loss_dict["train_loss_G_pix"] = loss_G_pix.item()
+            self.hist_dict["SR_pix_distribution"] = self.fake_hr.detach().cpu().numpy()
             self.optimizer_G.step()
         else:
             self.loss_dict["val_loss_G"] = loss_G.item()
@@ -244,7 +253,7 @@ class ESRDGAN(basegan.BaseGAN):
             self.hist_dict["val_grad_G_last_layer"] = grad_end.numpy()
             self.hist_dict["val_weight_G_first_layer"] = weight_start.numpy()
             self.hist_dict["val_weight_G_last_layer"] = weight_end.numpy()    
-            self.hist_dict["SR_pix_distribution"] = self.fake_hr.detach().numpy().item()
+            
 
         
         ###################
@@ -256,9 +265,13 @@ class ESRDGAN(basegan.BaseGAN):
 
         self.optimizer_D.zero_grad()
 
+            
+
+
         # squeeze to go from shape [batch_sz, 1] to [batch_sz]
         y_pred = self.D(self.hr).squeeze()
         fake_y_pred = self.D(self.fake_hr).squeeze().detach() # detach -> avoid BP to G
+
         
         # D only has adversarial loss.
         loss_D = None
@@ -276,6 +289,8 @@ class ESRDGAN(basegan.BaseGAN):
 
         if training_epoch:
             self.loss_dict["train_loss_D"] = loss_D.item()
+            self.hist_dict["D_pred_HR"] = y_pred.detach().cpu().numpy()
+            self.hist_dict["D_pred_SR"] = fake_y_pred.detach().cpu().numpy()
             self.optimizer_D.step()
         else:
             # features[0] is StridedDownConv2x, whose first elem is a nn.Conv2D
@@ -289,8 +304,8 @@ class ESRDGAN(basegan.BaseGAN):
             self.hist_dict["val_weight_D_first_layer"] = weight_start.numpy()
             self.hist_dict["val_weight_D_last_layer"] = weight_end.numpy()
             self.loss_dict["val_loss_D"] = loss_D.item()
-            self.hist_dict["D_pred_HR"] = y_pred.detach().numpy().item()
-            self.hist_dict["D_pred_SR"] = fake_y_pred.detach().numpy().item()
+
+
        
 
 
@@ -313,12 +328,19 @@ class ESRDGAN(basegan.BaseGAN):
 
 
     def make_new_labels(self):
+        pred_real = True
+        pred_fake = False
+
+        if self.cfg.training.flip_labels:
+            pred_real = False
+            pred_fake = True
+
         if self.cfg.training.use_noisy_labels:
-            self.y_is_real = trainingtricks.noisy_labels(True,  self.batch_size).to(self.device)
-            self.y_is_fake = trainingtricks.noisy_labels(False, self.batch_size).to(self.device)
-        else:
-            self.y_is_real = trainingtricks.noisy_labels(True, self.batch_size, noise_stddev=0.0).to(self.device)
-            self.y_is_fake = trainingtricks.noisy_labels(False, self.batch_size, noise_stddev=0.0).to(self.device)
+            self.y_is_real = trainingtricks.noisy_labels(pred_real,  self.batch_size).to(self.device).squeeze()
+            self.y_is_fake = trainingtricks.noisy_labels(pred_fake, self.batch_size).to(self.device).squeeze()
+        else: # no noise std dev -> no noise 
+            self.y_is_real = trainingtricks.noisy_labels(pred_real, self.batch_size, noise_stddev=0.0).to(self.device).squeeze()
+            self.y_is_fake = trainingtricks.noisy_labels(pred_fake, self.batch_size, noise_stddev=0.0).to(self.device).squeeze()
         
 
 
