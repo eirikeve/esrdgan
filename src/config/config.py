@@ -212,7 +212,7 @@ class Config(IniConfig):
     training: TrainingConfig = TrainingConfig()
 
     def __init__(self, ini_path):
-        config = ConfigParser()
+        config = ConfigParser(allow_no_value=True)
         config.read(ini_path)
 
         base_config = config["DEFAULT"]

@@ -103,7 +103,7 @@ def train(cfg: config.Config):
 
             gan.update_learning_rate()
             gan.feed_data(lr, hr)
-            gan.optimize_parameters()
+            gan.optimize_parameters(it)
 
             l = gan.get_new_status_logs()
             if len(l) > 0:
@@ -127,11 +127,11 @@ def train(cfg: config.Config):
                     val_lr = val_data["LR"].to(cfg.device)
                     val_hr = val_data["HR"].to(cfg.device)
                     gan.feed_data(val_lr, val_hr)
-                    gan.validation()
+                    gan.validation(it)
                     for val_name, val in gan.get_loss_dict_ref().items():
                         loss_vals[val_name] += val / n
                     for hist_name, val in gan.get_hist_dict_ref().items():
-                        hist_vals[hist_name] += val / n
+                        hist_vals[hist_name] = val
                     for val_name, val in gan.get_metrics_dict_ref().items():
                         metrics_vals[val_name] += val / n
                 if cfg.use_tensorboard_logger:
@@ -199,6 +199,8 @@ def store_current_visuals(cfg: config.Config, it, gan, dataloader):
             lr_i = torch.index_select(lrs, 0, indx, out=None)
             # new record in # of .calls ?
             sr_np = gan.G(lr_i).squeeze().detach().cpu().numpy() * 255
+            sr_np[ sr_np < 0] = 0
+            sr_np[ sr_np > 255 ] = 255
         
             # c,h,w -> cv2 img shape h,w,c
             sr_np = sr_np.transpose((1,2,0))
