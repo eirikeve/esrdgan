@@ -33,6 +33,8 @@ def main():
         print("Aborting")
         return
 
+    save_config(cfg, cfg.env.this_runs_folder)
+
     setup_logger(cfg)
     status_logger = logging.getLogger("status")
     status_logger.info(f"run.py: initialized with config:\n\n{cfg}")
@@ -152,8 +154,10 @@ def get_yes_or_no_input() -> bool:
         else:
            print("Please respond with 'yes' or 'no'")
 
-
-
+def save_config(cfg: config.Config, folder: str):
+    filename = folder+"/config.ini"
+    with open(filename, "w") as ini:
+        ini.write(cfg.asINI())
 
 
 if __name__ == "__main__":
