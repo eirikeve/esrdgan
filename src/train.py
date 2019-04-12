@@ -12,6 +12,7 @@ import random
 import os
 
 import cv2
+import numpy as np
 import torch
 import torch.cuda
 import torch.nn as nn
@@ -31,21 +32,17 @@ def train(cfg: config.Config):
     random.seed()
     torch.backends.cudnn.benckmark = True
     
-    dataloader_train, dataloader_val, dataloader_test = None, None, None
+    dataloader_train, dataloader_val = None, None
     if cfg.dataset_train:
-        dataloader_train = imageset.createDataloader(cfg, is_train_dataloader=True)
+        dataloader_train = imageset.createDataloader(cfg, is_train_dataloader=True, downsampler_mode="bicubic")
         status_logger.info("finished creating validation dataloader and dataset")
     else:
         raise ValueError("can't train without a training dataset - adjust the config")
     if cfg.dataset_val:
-        dataloader_val = imageset.createDataloader(cfg, is_train_dataloader=False)
+        dataloader_val = imageset.createDataloader(cfg, is_validation_dataloader=True, downsampler_mode="bicubic")
         status_logger.info("finished creating validation dataloader and dataset")
     else:
         status_logger.warning("no validation dataset supplied! consider adjusting the config")
-    if cfg.dataset_test:
-        dataloader_test = imageset.createDataloader(cfg, is_train_dataloader=False)
-        status_logger.info("finished creating testing dataloader and dataset")
-    
     
 
     gan: nn.Module = None
@@ -81,7 +78,7 @@ def train(cfg: config.Config):
     bar = displaybar.DisplayBar(max_value=len(dataloader_train), start_epoch=start_epoch, start_it=it)
     
     status_logger.info("storing LR and HR validation images in run folder, for reference")
-    store_lr_hr_in_runs_folder(cfg, dataloader_test)
+    store_lr_hr_in_runs_folder(cfg, dataloader_val)
 
     status_logger.info(f"beginning run from epoch {start_epoch}, it {it}")
 
@@ -131,7 +128,10 @@ def train(cfg: config.Config):
                     for val_name, val in gan.get_loss_dict_ref().items():
                         loss_vals[val_name] += val / n
                     for hist_name, val in gan.get_hist_dict_ref().items():
-                        hist_vals[hist_name] = val
+                        if type(hist_vals[hist_name]) == np.ndarray:
+                            hist_vals[hist_name] = np.concatenate( (hist_vals[hist_name], val), axis=0 )
+                        else:
+                            hist_vals[hist_name] = val
                     for val_name, val in gan.get_metrics_dict_ref().items():
                         metrics_vals[val_name] += val / n
                 if cfg.use_tensorboard_logger:

@@ -12,6 +12,8 @@ import random
 
 import torch
 
+import math
+
 
 def noisy_labels(label_type: bool, batch_size: int, noise_stddev: float = 0.05,
                           false_label_val: float = 0.0, true_label_val: float = 1.0, 
@@ -36,3 +38,9 @@ def noisy_labels(label_type: bool, batch_size: int, noise_stddev: float = 0.05,
         label_val = val_lower_lim
     return torch.FloatTensor(batch_size).fill_(label_val)
 
+
+
+def instance_noise( sigma_base: float, shape: torch.Size, it: int, niter: int ) -> torch.Tensor:
+    noise = torch.rand( shape ) # N(0,1)
+    var_desired = sigma_base * (it / niter)
+    return noise * math.sqrt(var_desired)

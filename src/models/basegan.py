@@ -29,13 +29,19 @@ class BaseGAN(lc.GlobalLoggingClass):
         return
 
     def load_model(self,  generator_load_path: str = None, discriminator_load_path: str = None, state_load_path: str = None):
-        if not generator_load_path is None:
+        if not generator_load_path is None and \
+           not generator_load_path.lower() == "null" and \
+           not generator_load_path.lower() == "none":
             self.G.load_state_dict(torch.load(generator_load_path))
             self.G.eval()
-        if not discriminator_load_path is None:
+        if not discriminator_load_path is None and \
+           not discriminator_load_path.lower() == "null" and \
+           not discriminator_load_path.lower() == "none":
             self.D.load_state_dict(torch.load(discriminator_load_path))
             self.G.eval()
-        if not state_load_path is None:
+        if not state_load_path is None and \
+           not state_load_path.lower() == "null" and \
+           not state_load_path.lower() == "none":
             state = torch.load(state_load_path)
             loaded_optimizers = state["optimizers"]
             loaded_schedulers = state["schedulers"]

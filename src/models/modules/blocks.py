@@ -37,7 +37,7 @@ class RDB(nn.Module):
     Based on: Residual Dense Network for Image Super-Resolution (Zhang et al., 2018)
     This variation supports different depths
     """
-    def __init__(self, num_chan: int, growth_chan: int, num_convs: int, 
+    def __init__(self, num_chan: int, growth_chan: int, num_convs: int, lff_kern_size: int,
                  lrelu_neg_slope: float = 0.2, res_scaling = 0.2):
         super(RDB, self).__init__()
         self.res_scaling = res_scaling
@@ -49,7 +49,12 @@ class RDB(nn.Module):
 
         # TODO: ESDRGAN uses 3x3 kernel here. Is it a bug in their code, or intentional?
         # In https://arxiv.org/pdf/1802.08797.pdf it's specified that LFF should have a 1x1 kern.
-        self.LFF = nn.Conv2d( num_chan + 4*growth_chan, num_chan, kernel_size=1, padding=0 )
+
+        if lff_kern_size <= 0 or (lff_kern_size % 2) == 0:
+            raise ValueError("LFF kernel size (lff_kern_size) must be an odd number > 0")
+        lff_pad = (lff_kern_size - 1) // 2 # no dim change
+            
+        self.LFF = nn.Conv2d( num_chan + 4*growth_chan, num_chan, kernel_size=lff_kern_size, padding=lff_pad )
 
     def forward(self, x):
         res1 = self.conv1(x)
@@ -65,18 +70,18 @@ class RRDB(nn.Module):
     (ESRGAN: Enhanced Super-Resolution Generative Adversarial Networks)
     """
     def __init__(self, num_chan: int, growth_chan: int, num_convs: int, 
-                 lrelu_neg_slope: float = 0.2,
+                 lff_kern_size: int, lrelu_neg_slope: float = 0.2,
                  rdb_res_scaling: float = 0.2, rrdb_res_scaling: float = 0.2):
         super(RRDB, self).__init__()
         self.res_scaling = rrdb_res_scaling
         
         self.rdbs = nn.Sequential(
             RDB( num_chan, growth_chan, num_convs, lrelu_neg_slope=lrelu_neg_slope,
-                 res_scaling=rdb_res_scaling ),
+                 res_scaling=rdb_res_scaling, lff_kern_size=lff_kern_size ),
             RDB( num_chan, growth_chan, num_convs, lrelu_neg_slope=lrelu_neg_slope,
-                 res_scaling=rdb_res_scaling ),
+                 res_scaling=rdb_res_scaling, lff_kern_size=lff_kern_size ),
             RDB( num_chan, growth_chan, num_convs, lrelu_neg_slope=lrelu_neg_slope,
-                 res_scaling=rdb_res_scaling )
+                 res_scaling=rdb_res_scaling, lff_kern_size=lff_kern_size )
         )
     def forward(self, x):
         residual = self.rdbs(x)

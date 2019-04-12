@@ -19,9 +19,9 @@ import models.modules.loggingclass as lc
 class ESRDnet(nn.Module, lc.GlobalLoggingClass):
     def __init__(self, in_nc: int, out_nc: int, nf: int,
                  n_rrdb: int, upscale: int=4, hr_kern_size: int = 3,
-                 n_rdb_convs: int = 5, rdb_gc: int=32, 
+                 n_rdb_convs: int = 5, rdb_gc: int=32, lff_kern_size: int=3,
                  rdb_res_scaling: float = 0.2, rrdb_res_scaling: float = 0.2,
-                 act_type:str="leakyrelu", device=torch.device("cpu")):
+                act_type:str="leakyrelu", device=torch.device("cpu")):
         super(ESRDnet, self).__init__()
 
         slope = 0
@@ -38,7 +38,7 @@ class ESRDnet(nn.Module, lc.GlobalLoggingClass):
 
         # Residual in residual dense blocks
         rrdbs = [ 
-                blocks.RRDB(nf, rdb_gc, n_rdb_convs, lrelu_neg_slope=slope,
+                blocks.RRDB(nf, rdb_gc, n_rdb_convs, lff_kern_size,  lrelu_neg_slope=slope,
                 rdb_res_scaling=rdb_res_scaling, rrdb_res_scaling=rrdb_res_scaling) for block in range(n_rrdb) ]
         # Conv after RRDB
         lr_conv = nn.Conv2d(nf, nf, kernel_size=3, padding=1)

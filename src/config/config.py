@@ -20,7 +20,11 @@ class IniConfig:
     def __str__(self):
         s = "[" + type(self).__name__.upper().replace("CONFIG", "") + "]\n"
         for k, v in vars(self).items():
-            s = s + f"{str(k)} = {str(v)}\n"
+            if v is None:
+                s = s + f"{str(k)}\n"
+            else:
+                s = s + f"{str(k)} = {str(v)}\n"
+
         return s
 
 
@@ -58,6 +62,7 @@ class GeneratorConfig(IniConfig):
     rdb_growth_chan: int    = 32
     hr_kern_size        :int = 3
     weight_init_scale: float = 1.0
+    lff_kern_size: int = 3
 
     def setGeneratorConfig(self, gen_config):
         self.norm_type = gen_config.get("norm_type")
@@ -73,6 +78,7 @@ class GeneratorConfig(IniConfig):
         self.rdb_growth_chan = gen_config.getint("rdb_growth_chan")
         self.hr_kern_size = gen_config.getint("hr_kern_size")
         self.weight_init_scale = gen_config.getfloat("weight_init_scale")
+        self.lff_kern_size = gen_config.getint("lff_kern_size")
 
 class DiscriminatorConfig(IniConfig):
     norm_type: str = "batch"
@@ -105,10 +111,12 @@ class FeatureExtractorConfig(IniConfig):
 
 class DatasetConfig(IniConfig):
     name: str = "default_dataset_name"
-    dataroot: str = "default_path"
+    mode: str = "downsampler"
+    dataroot_hr: str = "default_path"
+    dataroot_lr: str = "default_lr_path"
     n_workers: int      = 16
     batch_size: int     = 16
-    img_size: int       = 192
+    hr_img_size: int       = 192
     data_aug_gaussian_noise: bool = True
     gaussian_stddev: float = 0.01
     data_aug_shuffle: bool = True
@@ -117,10 +125,12 @@ class DatasetConfig(IniConfig):
 
     def setDatasetConfig(self, data_config):
         self.name = data_config.get("name")
-        self.dataroot = data_config.get("dataroot")
+        self.mode = data_config.get("mode")
+        self.dataroot_hr = data_config.get("dataroot_hr")
+        self.dataroot_lr = data_config.get("dataroot_lr")
         self.n_workers = data_config.getint("n_workers")
         self.batch_size = data_config.getint("batch_size")
-        self.img_size = data_config.getint("img_size")
+        self.hr_img_size = data_config.getint("hr_img_size")
         self.data_aug_gaussian_noise = data_config.getboolean("data_aug_gaussian_noise")
         self.gaussian_stddev = data_config.getfloat("gaussian_stddev")
         self.data_aug_shuffle = data_config.getboolean("data_aug_shuffle")
@@ -160,7 +170,9 @@ class TrainingConfig(IniConfig):
     feature_weight: float = 1.0
 
     use_noisy_labels: bool = False
+    use_one_sided_label_smoothing: bool = False
     flip_labels: bool = False
+    use_instance_noise: bool = False
 
     niter: int = 5e5
     val_period: int = 2e3
@@ -185,6 +197,8 @@ class TrainingConfig(IniConfig):
         self.feature_criterion = train_config.get("feature_criterion")
         self.feature_weight = train_config.getfloat("feature_weight")
         self.use_noisy_labels = train_config.getboolean("use_noisy_labels")
+        self.use_one_sided_label_smoothing =  train_config.getboolean("use_one_sided_label_smoothing")
+        self.use_instance_noise = train_config.getboolean("use_instance_noise")
         self.flip_labels = train_config.getboolean("flip_labels")
         self.niter = train_config.getint("niter")
         self.val_period = train_config.getint("val_period")
@@ -257,7 +271,11 @@ class Config(IniConfig):
         self.use_tensorboard_logger = base_config.getboolean("use_tensorboard_logger")
         self.scale = base_config.getint("scale")
         self.also_log_to_terminal = base_config.getboolean("also_log_to_terminal")
-        self.gpu_id = base_config.getint("gpu_id")
+        gpu = base_config.get("gpu_id")
+        if gpu is None:
+            self.gpu_id = None
+        else:
+            self.gpu_id = int(gpu)
         self.load_model_from_save = base_config.getboolean("load_model_from_save")
         self.display_bar = base_config.getboolean("display_bar")
 

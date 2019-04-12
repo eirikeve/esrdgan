@@ -99,25 +99,29 @@ def setup_logger(cfg: config.Config):
     root_logger.setLevel(logging.DEBUG)
     root_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(filename)s: %(message)s")
 
-    log_handler = logging.FileHandler(cfg.env.status_log_file, mode='a')
-    log_handler.setFormatter(root_formatter)
-    log_handler.setLevel(logging.DEBUG)
-    root_logger.addHandler(log_handler)
+    if cfg.is_train:
+        log_handler = logging.FileHandler(cfg.env.status_log_file, mode='a')
+        log_handler.setFormatter(root_formatter)
+        log_handler.setLevel(logging.DEBUG)
+        root_logger.addHandler(log_handler)
+
+        # train logger for logging losses during training
+        train_logger = logging.getLogger("train")
+        train_logger.setLevel(logging.INFO)
+        train_formatter = logging.Formatter("%(message)s")
+        train_handler = logging.FileHandler(cfg.env.train_log_file, mode='a')
+        train_logger.addHandler(train_handler)
+        train_logger.info("Initialized train logger")
     
     if cfg.also_log_to_terminal:
         term_handler = logging.StreamHandler()
         term_handler.setFormatter(root_formatter)
         term_handler.setLevel(logging.INFO)
         root_logger.addHandler(term_handler)
-    # train logger for logging losses during training
-    train_logger = logging.getLogger("train")
-    train_logger.setLevel(logging.INFO)
-    train_formatter = logging.Formatter("%(message)s")
-    train_handler = logging.FileHandler(cfg.env.train_log_file, mode='a')
-    train_logger.addHandler(train_handler)
+    
 
     root_logger.info("Initialized status logger")
-    train_logger.info("Initialized train logger")
+    
     return
 
 def setup_torch(cfg: config.Config):
