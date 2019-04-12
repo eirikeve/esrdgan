@@ -192,7 +192,7 @@ class ESRDGAN(basegan.BaseGAN):
         ###################
         # Update G 
         ###################
-        if it % 2 == 0:
+        if it % self.cfg.d_g_train_ratio == 0:
             for param in self.D.parameters():
                 param.requires_grad = False
     

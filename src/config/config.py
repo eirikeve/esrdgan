@@ -163,6 +163,8 @@ class TrainingConfig(IniConfig):
     gan_type: str = "relativistic"
     gan_weight: float = 5e-3
 
+    d_g_train_ratio: int = 1
+
     pixel_criterion: str = "l1"
     pixel_weight: float = 1e-2
 
@@ -192,6 +194,7 @@ class TrainingConfig(IniConfig):
         self.lr_gamma = train_config.getfloat("lr_gamma")
         self.gan_type = train_config.get("gan_type")
         self.gan_weight = train_config.getfloat("gan_weight")
+        self.d_g_train_ratio = train_config.getint("d_g_train_ratio")
         self.pixel_criterion = train_config.get("pixel_criterion")
         self.pixel_weight = train_config.getfloat("pixel_weight")
         self.feature_criterion = train_config.get("feature_criterion")
