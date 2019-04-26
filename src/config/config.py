@@ -20,10 +20,10 @@ class IniConfig:
     def __str__(self):
         s = "[" + type(self).__name__.upper().replace("CONFIG", "") + "]\n"
         for k, v in vars(self).items():
-            if v is None:
-                s = s + f"{str(k)}\n"
-            else:
+            if v is not None:
                 s = s + f"{str(k)} = {str(v)}\n"
+            else:
+                s = s + f"{str(k)}\n"
 
         return s
 
@@ -275,7 +275,7 @@ class Config(IniConfig):
         self.scale = base_config.getint("scale")
         self.also_log_to_terminal = base_config.getboolean("also_log_to_terminal")
         gpu = base_config.get("gpu_id")
-        if gpu is None:
+        if gpu is None or gpu.lower() == "none":
             self.gpu_id = None
         else:
             self.gpu_id = int(gpu)

@@ -32,12 +32,12 @@ class BaseGAN(lc.GlobalLoggingClass):
         if not generator_load_path is None and \
            not generator_load_path.lower() == "null" and \
            not generator_load_path.lower() == "none":
-            self.G.load_state_dict(torch.load(generator_load_path))
+            self.G.load_state_dict(torch.load(generator_load_path, map_location="cpu"))
             self.G.eval()
         if not discriminator_load_path is None and \
            not discriminator_load_path.lower() == "null" and \
            not discriminator_load_path.lower() == "none":
-            self.D.load_state_dict(torch.load(discriminator_load_path))
+            self.D.load_state_dict(torch.load(discriminator_load_path, map_location="cpu"))
             self.G.eval()
         if not state_load_path is None and \
            not state_load_path.lower() == "null" and \

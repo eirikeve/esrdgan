@@ -65,41 +65,50 @@ def test(cfg: config.Config):
                 hr_i = torch.index_select(hrs, 0, indx, out=None)
                 img_name = names[i]
 
-                lr_np =  lr_i.squeeze().detach().cpu().numpy() * 255
-                # c,h,w -> cv2 img shape h,w,c
-                lr_np = lr_np.transpose((1,2,0))
-
-                hr_np =  hr_i.squeeze().detach().cpu().numpy() * 255
-                hr_np = hr_np.transpose((1,2,0))
-
                 sr_i = gan.G(lr_i.to(cfg.device)).cpu()
-                sr_G_np = sr_i.squeeze().detach().cpu().numpy() * 255
-                sr_G_np[ sr_G_np < 0] = 0
-                sr_G_np[ sr_G_np > 255 ] = 255
-                sr_G_np = sr_G_np.transpose((1,2,0))
 
-                h = lr_np.shape[0]
-                w = lr_np.shape[1]
+                imgs = make_and_write_images(lr_i, hr_i, sr_i, test_folder_path, img_name, cfg.scale)
+
+                #write_metrics(imgs, img_name, f)
 
 
-                sr_nn_np = cv2.resize(lr_np, (w * cfg.scale, h * cfg.scale), interpolation=cv2.INTER_NEAREST)
-                sr_bicubic_np = cv2.resize(lr_np, (w * cfg.scale, h * cfg.scale), interpolation=cv2.INTER_CUBIC)
+def make_and_write_images(lr: torch.Tensor, hr: torch.Tensor, sr: torch.Tensor, folder_path: str, img_name: str, scale: int) -> dict:
+    # transpose: c,h,w -> cv2 img shape h,w,c
+    lr_np =  lr.squeeze().detach().cpu().numpy() * 255
+    lr_np = lr_np.transpose((1,2,0))
+    hr_np =  hr.squeeze().detach().cpu().numpy() * 255
+    hr_np = hr_np.transpose((1,2,0))
+    sr_G_np = sr.squeeze().detach().cpu().numpy() * 255
+    sr_G_np = sr_G_np.transpose((1,2,0))
+    # in case of -> uint8 overflow
+    sr_G_np[ sr_G_np < 0] = 0
+    sr_G_np[ sr_G_np > 255 ] = 255
 
-                filename_sr = os.path.join(test_folder_path, f"{img_name}_sr.png")
-                filename_sr_nn = os.path.join(test_folder_path, f"{img_name}_nearest.png")
-                filename_sr_bicubic = os.path.join(test_folder_path, f"{img_name}_bicubic.png")
-                filename_lr = os.path.join(test_folder_path, f"{img_name}_lr.png")
-                filename_hr = os.path.join(test_folder_path, f"{img_name}_hr.png")
+    # upscaled lr images for comparison
+    h = lr_np.shape[0]
+    w = lr_np.shape[1]
+    sr_nn_np = cv2.resize(lr_np, (w * scale, h * scale), interpolation=cv2.INTER_NEAREST)
+    sr_bicubic_np = cv2.resize(lr_np, (w * scale, h * scale), interpolation=cv2.INTER_CUBIC)
 
-                cv2.imwrite(filename_sr, sr_G_np)
-                cv2.imwrite(filename_sr_nn, sr_nn_np)
-                cv2.imwrite(filename_sr_bicubic, sr_bicubic_np)
-                cv2.imwrite(filename_lr, lr_np)
-                cv2.imwrite(filename_hr, hr_np)
+    filename_sr = os.path.join(folder_path, f"{img_name}_sr_{scale}x.png")
+    filename_sr_nn = os.path.join(folder_path, f"{img_name}_nearest_{scale}x.png")
+    filename_sr_bicubic = os.path.join(folder_path, f"{img_name}_bicubic_{scale}x.png")
+    filename_lr = os.path.join(folder_path, f"{img_name}_lr.png")
+    filename_hr = os.path.join(folder_path, f"{img_name}_hr.png")
 
-                #psnr = img_psnr(sr_i, hr_i)
+    cv2.imwrite(filename_sr, sr_G_np)
+    cv2.imwrite(filename_sr_nn, sr_nn_np)
+    cv2.imwrite(filename_sr_bicubic, sr_bicubic_np)
+    cv2.imwrite(filename_lr, lr_np)
+    cv2.imwrite(filename_hr, hr_np)
 
-                #f.write(f"{img_name},{psnr}")
+    return { "LR": lr_np, "HR": hr_np, "SR": sr_G_np, "SR_nearest": sr_nn_np, "SR_bicubic": sr_bicubic_np }
+
+def write_metrics(images: dict, img_name: str, dest_file):
+    psnr = img_psnr(images["SR"], images["HR"])
+    dest_file.write(f"{img_name},{psnr}")
+
+
 
 
 def img_psnr(sr: torch.Tensor, hr: torch.Tensor) -> float:

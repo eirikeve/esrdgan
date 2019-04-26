@@ -142,7 +142,7 @@ def makedirs_ensure_user_ok(path) -> bool:
     else:
         print(f"Folder {path} exists.\nAre you sure you want to run with the same run name? Files may be overwritten. [Y/n]")
         return get_yes_or_no_input()
-        
+
 
 def get_yes_or_no_input() -> bool:
     # courtesy of https://stackoverflow.com/questions/3041986/apt-command-line-interface-like-yes-no-input

@@ -205,10 +205,10 @@ class HRLRImageset(data.Dataset):
         self.transforms = transforms
 
         self.lr_img_paths = [ p.join(cfg_d.dataroot_lr, f) for f in os.listdir( cfg_d.dataroot_lr) \
-                              if p.isfile( p.join(cfg_d.dataroot_lr, f)) ]
+                              if p.isfile( p.join(cfg_d.dataroot_lr, f)) and not ".DS_Store" in f ]
 
         self.hr_img_paths = [ p.join(cfg_d.dataroot_hr, f) for f in os.listdir( cfg_d.dataroot_hr) \
-                              if p.isfile( p.join(cfg_d.dataroot_hr, f)) ]
+                              if p.isfile( p.join(cfg_d.dataroot_hr, f)) and not ".DS_Store" in f ]
         if len(self.lr_img_paths) == 0:
             raise ValueError(f"no image files in {cfg_d.dataroot_lr}")
         if len(self.hr_img_paths) == 0:
@@ -219,6 +219,8 @@ class HRLRImageset(data.Dataset):
         np.random.seed()
     
     def __getitem__(self, idx):
+
+        print(self.lr_img_paths, self.hr_img_paths)
 
 
         hr_path = self.hr_img_paths[idx]
