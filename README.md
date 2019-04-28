@@ -9,7 +9,7 @@ A 4x SR model was trained on the `Flickr2K` dataset, for 200 000 iterations (bat
 
 ![monarch](docs/output-200k.png)
 
-You can find more outputs in the [`outputs`](outputs/) folder.
+You can find more outputs in the [`output`](output/) folder.
 
 The performance of the model is not as good as SOTA implementations, and there are ta few key reasons I believe caused this:  
 1) The model was not pretrained for PSNR (which is quite common to do)
