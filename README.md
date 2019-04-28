@@ -139,6 +139,24 @@ python run.py --test --cfg ../runs/<your_run>/config.ini
 ```
 
 
+
+### Datasets
+
+
+#### Flickr2k Subcrops
+
+The dataset I used for training can be downloaded from my Drive, [`here`](https://drive.google.com/file/d/1DpGqhuK9v8obQihBqoT40COn-Q0Qp_Xb/view?usp=sharing). It consists of 256 x 256 crops from Flickr2k. You can also download Flickr2k directly,
+```bash
+wget https://cv.snu.ac.kr/research/EDSR/Flickr2K.tar
+tar -xvf Flickr2K.tar
+```
+
+For validation, I used BSDS100, and for testing, I used Set14. Both can be found here,
+```bash
+curl http://vllab.ucmerced.edu/wlai24/LapSRN/results/SR_testing_datasets.zip > testing_datasets.zip
+unzip testing_datasets.zip
+```
+
 ### More info on configuring the model
 
 To run the project, go to the `src` dir and run
