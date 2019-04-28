@@ -24,7 +24,7 @@ import test
 
 def main():
     cfg: config.Config = argv_to_cfg()
-    if (not cfg.is_test and not cfg.is_train):
+    if (not cfg.is_test and not cfg.is_train and not cfg.is_use):
         print("pass either --test or --train as args, and optionally --cfg path/to/config.ini if config/ESRDGAN_config.ini isn't what you're planning on using.")
         return 
     
@@ -33,13 +33,18 @@ def main():
         print("Aborting")
         return
 
+    setup_torch(cfg)
+
+    if cfg.is_use:
+        test.test(cfg)
+
     save_config(cfg, cfg.env.this_runs_folder)
 
     setup_logger(cfg)
     status_logger = logging.getLogger("status")
     status_logger.info(f"run.py: initialized with config:\n\n{cfg}")
 
-    setup_torch(cfg)
+    
     status_logger.info(f"run.py: running with device: {cfg.device}")
     
     if cfg.is_train:
@@ -60,15 +65,22 @@ def argv_to_cfg() -> config.Config:
     parser.add_argument("--cfg", type=str, default="config/ESRDGAN_config.ini", help="path to config ini file (defaults to /config/ESRDGAN_config.ini)")
     parser.add_argument("--train",  default=False, action="store_true", help="run training with supplied config")
     parser.add_argument("--test",   default=False, action="store_true", help="run tests with supplied config")
+    parser.add_argument("--use",   default=False, action="store_true", help="use on LR images")
     parser.add_argument("--loglevel",   default=False, action="store_true", help="run tests with supplied config")
     args = parser.parse_args()
     is_test = args.test
     is_train = args.train
+    is_use = args.use
     cfg_path = args.cfg
+
+    if is_use:
+        cfg_path = os.path.dirname(os.path.realpath(__file__)) + "/../pretrained/config_use.ini"
+        print(cfg_path)
 
     cfg = config.Config(cfg_path)
     cfg.is_test = is_test
-    cfg.is_train = is_train
+    cfg.is_use = is_use
+    cfg.is_train = is_train 
 
     return cfg
 

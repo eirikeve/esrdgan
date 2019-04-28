@@ -166,7 +166,7 @@ class LRImageset(data.Dataset):
         self.transforms = transforms
 
         self.lr_img_paths = [ p.join(cfg_d.dataroot_lr, f) for f in os.listdir( cfg_d.dataroot_lr) \
-                              if p.isfile( p.join(cfg_d.dataroot_lr, f)) ]
+                              if p.isfile( p.join(cfg_d.dataroot_lr, f)) and not ".DS_Store" in f ]
         if len(self.lr_img_paths) == 0:
             raise ValueError(f"no image files in {cfg_d.dataroot_lr}")
 
@@ -176,8 +176,11 @@ class LRImageset(data.Dataset):
         lr_path = self.lr_img_paths[idx]
         lr_name = os.path.basename(lr_path)
         lr_name = os.path.splitext(lr_name)[0]
+
+        print(lr_path)
         
         lr = cv2.imread(lr_path,cv2.IMREAD_UNCHANGED)
+
         # ToTensor() in transforms normalizes the images to [0,1] as long as they are uint8
         lr = lr.astype(np.uint8)
         
@@ -209,6 +212,10 @@ class HRLRImageset(data.Dataset):
 
         self.hr_img_paths = [ p.join(cfg_d.dataroot_hr, f) for f in os.listdir( cfg_d.dataroot_hr) \
                               if p.isfile( p.join(cfg_d.dataroot_hr, f)) and not ".DS_Store" in f ]
+        
+        self.hr_img_paths.sort()
+        self.lr_img_paths.sort()
+        
         if len(self.lr_img_paths) == 0:
             raise ValueError(f"no image files in {cfg_d.dataroot_lr}")
         if len(self.hr_img_paths) == 0:
@@ -242,7 +249,7 @@ class HRLRImageset(data.Dataset):
 
         if self.cfg.scale * h_lr != h  or self.cfg.scale * w_lr != w:
             pass
-            #raise ValueError(f"non matching LR and HR dimensions. Is HR square and its h/w divisible by the scale?")
+            raise ValueError(f"non matching LR and HR dimensions. Is HR square and its h/w divisible by the scale?")
 
         if self.cfg_d.data_aug_gaussian_noise:
             # std dev in cfg is for normalized [0,1] image repr, and cv2 image is uint8 [0,255]

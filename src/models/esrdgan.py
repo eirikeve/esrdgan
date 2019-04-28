@@ -63,7 +63,7 @@ class ESRDGAN(basegan.BaseGAN):
         self.metrics_dict = {
             "val_PSNR": 0.0,
         }
-        self.batch_size = cfg.dataset_train.batch_size
+        self.batch_size = 1
         self.make_new_labels() # updates self.y_is_real, self.y_is_fake
 
         ###################
@@ -83,84 +83,85 @@ class ESRDGAN(basegan.BaseGAN):
                                     rrdb_res_scaling  = cfg_g.rrdb_res_scaling,
                                     act_type          = cfg_g.act_type,
                                     device            = self.device )
-
-        cfg_d: config.DiscriminatorConfig = cfg.discriminator
-        if cfg.dataset_train.hr_img_size == 128:
-            self.D = discriminator.VGG128Discriminator( cfg_d.in_num_ch,
-                                                        cfg_d.num_features,
-                                                        feat_kern_size=cfg_d.feat_kern_size,
-                                                        norm_type = cfg_d.norm_type,
-                                                        act_type  = cfg_d.act_type,
-                                                        mode      = cfg_d.layer_mode,
-                                                        device    = self.device )
-        else:
-            raise NotImplementedError(f"Discriminator for image size {cfg.image_size} har not been implemented.\
-                                        Please train with a size that has been implemented.")
-            
-
-        cfg_f: config.FeatureExtractorConfig = cfg.feature_extractor
-        self.F = featureextractor.VGG19FeatureExtractor( cfg_f.low_level_feat_layer,
-                                                         cfg_f.high_level_feat_layer,
-                                                         use_batch_norm  = False,
-                                                         use_input_norm  = True,
-                                                         device          = self.device)
-
-        # move to CUDA if available
-        self.y_is_real = self.y_is_real.to(cfg.device)
-        self.y_is_fake = self.y_is_fake.to(cfg.device)
         self.G = self.G.to(cfg.device)
-        self.D = self.D.to(cfg.device)
-        self.F = self.F.to(cfg.device)
-
         initialization.init_weights(self.G, scale=cfg_g.weight_init_scale)
-        initialization.init_weights(self.D, scale=cfg_d.weight_init_scale)
+
+        if cfg.is_train:
+            cfg_d: config.DiscriminatorConfig = cfg.discriminator
+            if cfg.dataset_train.hr_img_size == 128:
+                self.D = discriminator.VGG128Discriminator( cfg_d.in_num_ch,
+                                                            cfg_d.num_features,
+                                                            feat_kern_size=cfg_d.feat_kern_size,
+                                                            norm_type = cfg_d.norm_type,
+                                                            act_type  = cfg_d.act_type,
+                                                            mode      = cfg_d.layer_mode,
+                                                            device    = self.device )
+            else:
+                raise NotImplementedError(f"Discriminator for image size {cfg.image_size} har not been implemented.\
+                                            Please train with a size that has been implemented.")
+
+
+            cfg_f: config.FeatureExtractorConfig = cfg.feature_extractor
+            self.F = featureextractor.VGG19FeatureExtractor( cfg_f.low_level_feat_layer,
+                                                             cfg_f.high_level_feat_layer,
+                                                             use_batch_norm  = False,
+                                                             use_input_norm  = True,
+                                                             device          = self.device)
+
+            # move to CUDA if available
+            self.y_is_real = self.y_is_real.to(cfg.device)
+            self.y_is_fake = self.y_is_fake.to(cfg.device)
+            self.D = self.D.to(cfg.device)
+            self.F = self.F.to(cfg.device)
+            initialization.init_weights(self.D, scale=cfg_d.weight_init_scale)
 
         ###################
         # Define optimizers, schedulers, and losses
         ###################
 
-        cfg_t: config.TrainingConfig = cfg.training
-        self.optimizer_G = torch.optim.Adam( self.G.parameters(),
-                                             lr=cfg_t.learning_rate_g,
-                                             weight_decay=cfg_t.adam_weight_decay_g,
-                                             betas=(cfg_t.adam_beta1_g, 0.999))
-        self.optimizer_D = torch.optim.Adam( self.D.parameters(),
-                                             lr=cfg_t.learning_rate_d,
-                                             weight_decay=cfg_t.adam_weight_decay_d,
-                                             betas=(cfg_t.adam_beta1_d, 0.999))
-        self.optimizers.append(self.optimizer_G)
-        self.optimizers.append(self.optimizer_D)
-    
-        if cfg_t.multistep_lr_steps:
-            self.scheduler_G = lr_scheduler.MultiStepLR(self.optimizer_G, cfg_t.multistep_lr_steps, gamma=cfg_t.lr_gamma)
-            self.scheduler_D = lr_scheduler.MultiStepLR(self.optimizer_D, cfg_t.multistep_lr_steps, gamma=cfg_t.lr_gamma)
-            self.schedulers.append(self.scheduler_G)
-            self.schedulers.append(self.scheduler_D)
+        if cfg.is_train:
+            cfg_t: config.TrainingConfig = cfg.training
+            self.optimizer_G = torch.optim.Adam( self.G.parameters(),
+                                                 lr=cfg_t.learning_rate_g,
+                                                 weight_decay=cfg_t.adam_weight_decay_g,
+                                                 betas=(cfg_t.adam_beta1_g, 0.999))
+            self.optimizer_D = torch.optim.Adam( self.D.parameters(),
+                                                 lr=cfg_t.learning_rate_d,
+                                                 weight_decay=cfg_t.adam_weight_decay_d,
+                                                 betas=(cfg_t.adam_beta1_d, 0.999))
+            self.optimizers.append(self.optimizer_G)
+            self.optimizers.append(self.optimizer_D)
 
-        # pixel loss
-        if cfg_t.pixel_criterion is None or cfg_t.pixel_criterion == 'none':
-            self.pixel_criterion = None
-        elif cfg_t.pixel_criterion == 'l1':
-            self.pixel_criterion = nn.L1Loss()
-        elif cfg_t.pixel_criterion == 'l2':
-            self.pixel_criterion = nn.MSELoss()
-        else:
-            raise NotImplementedError(f"Only l1 and l2 (MSE) loss have been implemented for pixel loss, not {cfg_t.pixel_criterion}")
-        # feature (perceptual) loss
-        if cfg_t.feature_criterion is None or cfg_t.feature_criterion == 'none':
-            self.feature_criterion = None
-        elif cfg_t.pixel_criterion == 'l1':
-            self.feature_criterion = nn.L1Loss()
-        elif cfg_t.feature_criterion == 'l2':
-            self.feature_criterion = nn.MSELoss()
-        else:
-            raise NotImplementedError(f"Only l1 and l2 (MSE) loss have been implemented for feature loss, not {cfg_t.feature_criterion}")
-        # GAN adversarial loss
-        if cfg_t.gan_type == "relativistic" or cfg_t.gan_type == "relativisticavg":
-            self.criterion = nn.BCEWithLogitsLoss().to(cfg.device)
-        else:
-            raise NotImplementedError(f"Only relativistic and relativisticavg GAN are implemented, not {cfg_t.gan_type}")
-        return
+            if cfg_t.multistep_lr_steps:
+                self.scheduler_G = lr_scheduler.MultiStepLR(self.optimizer_G, cfg_t.multistep_lr_steps, gamma=cfg_t.lr_gamma)
+                self.scheduler_D = lr_scheduler.MultiStepLR(self.optimizer_D, cfg_t.multistep_lr_steps, gamma=cfg_t.lr_gamma)
+                self.schedulers.append(self.scheduler_G)
+                self.schedulers.append(self.scheduler_D)
+
+            # pixel loss
+            if cfg_t.pixel_criterion is None or cfg_t.pixel_criterion == 'none':
+                self.pixel_criterion = None
+            elif cfg_t.pixel_criterion == 'l1':
+                self.pixel_criterion = nn.L1Loss()
+            elif cfg_t.pixel_criterion == 'l2':
+                self.pixel_criterion = nn.MSELoss()
+            else:
+                raise NotImplementedError(f"Only l1 and l2 (MSE) loss have been implemented for pixel loss, not {cfg_t.pixel_criterion}")
+            # feature (perceptual) loss
+            if cfg_t.feature_criterion is None or cfg_t.feature_criterion == 'none':
+                self.feature_criterion = None
+            elif cfg_t.pixel_criterion == 'l1':
+                self.feature_criterion = nn.L1Loss()
+            elif cfg_t.feature_criterion == 'l2':
+                self.feature_criterion = nn.MSELoss()
+            else:
+                raise NotImplementedError(f"Only l1 and l2 (MSE) loss have been implemented for feature loss, not {cfg_t.feature_criterion}")
+            # GAN adversarial loss
+            if cfg_t.gan_type == "relativistic" or cfg_t.gan_type == "relativisticavg":
+                self.criterion = nn.BCEWithLogitsLoss().to(cfg.device)
+            else:
+                raise NotImplementedError(f"Only relativistic and relativisticavg GAN are implemented, not {cfg_t.gan_type}")
+            return
     
     def feed_data(self, lr: torch.Tensor, hr: torch.Tensor = None):
         self.lr = lr
