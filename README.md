@@ -1,5 +1,5 @@
 # esrdgan
-GAN implementation for single image super resolution - based on ESRGAN, and written by [me](https://github.com/eirikeve).
+GAN implementation for single image super resolution - based on ESRGAN, and written by [me](https://github.com/eirikeve), using `python/pytorch`.
 
 
 
@@ -9,7 +9,7 @@ A 4x SR model was trained on the `Flickr2K` dataset, for 200 000 iterations (bat
 
 ![monarch](docs/output-200k.png)
 
-Here is another sample - an image `times_new_roman`, which has no HR counterpart:
+Here is another sample - an image I made, `times_new_roman`, which has no HR counterpart:
 
 ![times](docs/times_new_roman_200k.png)
 
@@ -17,7 +17,7 @@ You can find more outputs in the [`output`](output/) folder.
 There are also some sample inputs in the [`input`](input/) folder.
 
 
-The performance of the model is not as good as SOTA implementations, and there are ta few key reasons I believe caused this:  
+The performance of the model is not as good as SOTA implementations, and there are a few key reasons I believe caused this:  
 1) The model was not pretrained for PSNR (which is quite common to do)
 2) The model was trained for fewer iterations than most SOTA implementations (200k iterations of batch size 8 vs. ESRGAN's ~500k iterations of batch size 16, after PSNR-oriented pretraining)
 3) The model was more shallow than SOTA implementations, the reason being limited computing resources  
