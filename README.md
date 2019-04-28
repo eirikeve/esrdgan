@@ -29,19 +29,21 @@ The performance of the model is not as good as SOTA implementations, and there a
 ### Getting started
 
 To run the project, you'll need:  
-```python
+```bash
 python3.6
 numpy
 torch
 torchvision
-cv2
+opencv-python
 tensorboardX
+progressbar2
 ```
 `CUDA` is also strongly recommended (at least if you're going to do any training).
 
 ### Setting up
 
-If you're planning on using the pretrained model, here's what you'll need to do:
+#### Using the pretrained model
+If you're planning on using the pretrained model to upscale LR images, here's what you'll need to do:
 
 ```bash
 # Clone the github repo
@@ -57,14 +59,17 @@ vim pretrained/config_use.ini
 # you'll want to set:
 # generator_load_path to whatever $(esrdganDir)/pretrained/ESRDGAN.pth is
 # root_path to whatever $(esrdganDir) is
+# dataroot_lr of DATASETTEST to whatever $(esrdganDir)/input is
 # gpu_id to either nothing, or to whatever GPU you'll be using
+# you do not need to modify other parts of the config file.
 
-
-# run
+# upscale images
 cd src
 python run.py --use
 ```
 
+
+#### Training your own model
 
 If you're planning on training your own model, here's most of what you'll need to do:
 
@@ -110,6 +115,27 @@ cd $(esrdganDir)/src
 vim ../runs/<name_of_run>/config.ini
 # Then, resume the training
 python run.py --train --cfg ../runs/<name_of_run>/config.ini
+```
+
+#### Testing a model 
+If you're planning on testing the performance of your model on a set of LR + HR images, here's what you'll need to do.
+
+Note that there's also a `config_test.ini` supplied - this is for testing the pretrained model. You can use that one instead if you'd like - but you'll need to modify the paths there as well.
+
+```bash
+# first, have a trained G
+
+vim runs/<your_run>/config.ini
+# you'll want to set:
+# generator_load_path to whatever $(esrdganDir)/runs/<your_run>/G_<it#>.pth is
+# gpu_id to either nothing, or to whatever GPU you'll be using
+# make sure the DATASETTEST mode is hrlr
+# specify DATASETTEST dataroot_lr and dataroot_hr
+# ensure that the HR images have dimensions that are evenly divisible by 4
+
+# run
+cd src
+python run.py --test --cfg ../runs/<your_run>/config.ini
 ```
 
 
