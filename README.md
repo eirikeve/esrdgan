@@ -30,7 +30,7 @@ The performance of the model is not as good as SOTA implementations, and there a
 
 To run the project, you'll need:  
 ```bash
-python3.6
+python3 # I used 3.6
 numpy
 torch
 torchvision
