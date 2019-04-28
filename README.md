@@ -5,11 +5,17 @@ GAN implementation for single image super resolution - based on ESRGAN, and writ
 
 Parts of the code in the repository was based on ESRGAN's [source code](https://github.com/xinntao/BasicSR) - this is noted in the respective files.
 
-A 4x SR model was trained on the `Flickr2K` dataset, for 200 000 iterations (batch size 8). Here is a sample of the output:
+A 4x SR model was trained on the `Flickr2K` dataset, for 200 000 iterations (batch size 8). Here is a sample of the output - the widely used `monarch` image:
 
 ![monarch](docs/output-200k.png)
 
+Here is another sample - an image `times_new_roman`, which has no HR counterpart:
+
+![times](docs/times_new_roman_200k.png)
+
 You can find more outputs in the [`output`](output/) folder.
+There are also some sample inputs in the [`input`](input/) folder.
+
 
 The performance of the model is not as good as SOTA implementations, and there are ta few key reasons I believe caused this:  
 1) The model was not pretrained for PSNR (which is quite common to do)
@@ -130,7 +136,7 @@ To configuring the model to train, you can make your own `.ini` file. For inform
 
 ## A brief overview
 
-The main motivation behind implementing ESRDGAN from the bottom up instead of just forking ESRGAN's (or another implementation's) source, was that I wanted to really understand how a GAN is structured and implemented. I'm pretty satisfied about the outcome: though it did not result in a SOTA SR implementation, I have learned a lot about GAN's - and perhaps most about how hard they are to train. Additionally, I am rather confident that tweaking the model parameters and training it on a larger dataset for a longer time could give great results. If I have the time, I will do so eventully.
+The main motivation behind implementing ESRDGAN from the bottom up instead of just forking ESRGAN's (or another implementation's) source, was that I wanted to really understand how a GAN is structured and implemented. I'm pretty satisfied about the outcome: though it did not result in a SOTA SR implementation, I have learned a lot about GAN's - and perhaps most about how hard they are to train. The bulk of the time I spent working on this project, I was working towards achieving stable training. Additionally, I am rather confident that tweaking the model parameters and training it on a larger dataset for a longer time could give great results. If I have the time, I will do so eventually.
 
 
 Although this implementation was inspired a lot by ESRGAN, it is different in some areas. For information on this, you can check out the [`project slides`](docs/project-slides.pdf).
@@ -143,3 +149,9 @@ Similarly to ESRDGAN, the generator architecture is based around the `Residual i
 
 ### Training tricks
 The implementation supports a number of training tricks intended for improving stability when training. Some of these proved very useful - as I initially struggled to achieve stable training, despite having an implementation that was (in theory at least) very similar to ESRGAN. Some of them proved less useful. They can all be configured in the config file.
+
+### Results
+
+The resulting outputs appear a bit similar to oil paintings. Additionally, they have non-neglible artefacts which cause them to not be quite as visually pleasing as they otherwise would be. There is also a bit of color shift occurring for some images. This is one of the reasons I believe the model is not fully converged, and could benefit from prolonged training.
+
+Overall, the images all have lower PSNR than their bicubically upsampled counterparts. Despite this, I would argue that the outputs generally do look better than bicubic upsamples. As has been noted by others, PSNR might not be the best metric for evaluating the "realness" of an image.
