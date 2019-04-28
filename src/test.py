@@ -3,7 +3,7 @@ test.py
 Written by Eirik Vesterkjær, 2019
 Apache License
 
-Implements GAN testing
+Implements GAN testing, and upscaling LR images
 Use run.py to run.
 """
 
@@ -152,4 +152,3 @@ def img_psnr(sr, hr) -> float:
     epsilon = 1e-8 # PSNR is usually ~< 50 so this should not impact the result much
     return 10 * math.log10(R_squared / (MSE + epsilon))
 
-            

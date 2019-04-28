@@ -25,6 +25,38 @@ The performance of the model is not as good as SOTA implementations, and there a
 
 ## Installation & howto
 
+### Important files
+
+
+```bash
+.
+├── README.md                    
+├── docs                            # project proposal and project slides
+├── input                           # can be used for upscaling images with the pretrained model
+├── output                          # output after upscaling with the pretrained model
+├── pretrained                      # pretrained model, and configs for using it
+├── runs                            # when training, the run config, result model and image outputs are stored here
+└── src                             # source
+    ├── config                      # configuration of the training, datasets, environment, etc.
+    │   ├── ESRDGAN_config.ini      # config file for training
+    │   └── config.py               # parses config files
+    ├── data                        # dataloader + dataset
+    │   └── imageset.py 
+    ├── iocomponents                # progress bar for when training
+    │   └── displaybar.py  
+    ├── models                      # code for GAN model
+    │   ├── architectures           # Generator, Discriminator, Feature extractor
+    │   ├── basegan.py              # Base class for GAN
+    │   ├── esrdgan.py              # ESRDGAN's class implementation. Parameter optimization.
+    │   └── modules                 
+    │       ├── blocks.py           # building blocks for the networks
+    │       ├── initialization.py   # network initialization
+    │       ├── loggingclass.py     # this is a class which adds some useful logging functionality for the GAN
+    │       └── trainingtricks.py   # those of the training tricks which required a bit of code. instance noise and noisy labels.
+    ├── run.py                      # entry point / used for running the project
+    ├── test.py                     # used by run.py for testing and upscaling 
+    └── train.py                    # used by run.py for training. This implements the training loop.
+```
 
 ### Getting started
 
@@ -145,7 +177,7 @@ python run.py --test --cfg ../runs/<your_run>/config.ini
 
 #### Flickr2k Subcrops
 
-The dataset I used for training can be downloaded from my Drive, [`here`](https://drive.google.com/file/d/1DpGqhuK9v8obQihBqoT40COn-Q0Qp_Xb/view?usp=sharing). It consists of 256 x 256 crops from Flickr2k. You can also download Flickr2k directly,
+The dataset I used for training can be downloaded from my Drive, [`here`](https://drive.google.com/file/d/1DpGqhuK9v8obQihBqoT40COn-Q0Qp_Xb/view?usp=sharing). It consists of 256 x 256 crops from Flickr2k. You can also download Flickr2k directly and crop it yourself,
 ```bash
 wget https://cv.snu.ac.kr/research/EDSR/Flickr2K.tar
 tar -xvf Flickr2K.tar

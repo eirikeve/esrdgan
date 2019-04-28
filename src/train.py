@@ -82,8 +82,7 @@ def train(cfg: config.Config):
 
     status_logger.info(f"beginning run from epoch {start_epoch}, it {it}")
 
-    # only display important things in the terminal, to not mess up the progress bar
-    #status_logger.handlers[1].setLevel(logging.WARNING)
+
 
     for epoch in range(start_epoch, count_train_epochs + 1):
         status_logger.debug("epoch {epoch}")
@@ -113,7 +112,8 @@ def train(cfg: config.Config):
                 status_logger.debug(f"storing visuals (it {it})")
                 store_current_visuals(cfg, it, gan, dataloader_val)            
 
-
+            if dataloader_val is None:
+                continue
             if it % cfg_t.val_period == 0:
                 status_logger.debug(f"validation epoch (it {it})")
                 loss_vals = dict((val_name, val*0) for (val_name, val) in gan.get_loss_dict_ref().items())
@@ -148,8 +148,7 @@ def train(cfg: config.Config):
                 status_logger.debug(stat_log_str)
                 store_current_visuals(cfg, 0, gan, dataloader_val) # tricky way of always having the newest images.
 
-                
-                
+
     return
 
 

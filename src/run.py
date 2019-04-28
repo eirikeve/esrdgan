@@ -6,7 +6,7 @@ Apache License
 Entry point for training or testing ESRDGAN
 Sets up environment/logging, and starts training/testing
 Usage:
-    python run.py < --train | --test > [ --cfg path/to/config.ini ] [ -h ]
+    python run.py < --train | --test | --use > [ --cfg path/to/config.ini ] [ -h ]
 
 """
 
