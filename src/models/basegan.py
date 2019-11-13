@@ -38,7 +38,7 @@ class BaseGAN(lc.GlobalLoggingClass):
            not discriminator_load_path.lower() == "null" and \
            not discriminator_load_path.lower() == "none":
             self.D.load_state_dict(torch.load(discriminator_load_path, map_location="cpu"))
-            self.G.eval()
+            self.D.eval()
         if not state_load_path is None and \
            not state_load_path.lower() == "null" and \
            not state_load_path.lower() == "none":
